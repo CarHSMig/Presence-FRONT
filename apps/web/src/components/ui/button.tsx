@@ -35,24 +35,72 @@ const buttonVariants = cva(
 	},
 );
 
+interface ButtonProps extends React.ComponentProps<"button">, VariantProps<typeof buttonVariants> {
+	asChild?: boolean;
+	icon?: React.ReactNode;
+	iconPosition?: "left" | "right";
+	loading?: boolean;
+	loadingIcon?: React.ReactNode;
+}
+
 function Button({
 	className,
 	variant,
 	size,
 	asChild = false,
+	icon,
+	iconPosition = "left",
+	loading = false,
+	loadingIcon,
+	children,
+	disabled,
 	...props
-}: React.ComponentProps<"button"> &
-	VariantProps<typeof buttonVariants> & {
-		asChild?: boolean;
-	}) {
+}: ButtonProps) {
 	const Comp = asChild ? SlotPrimitive.Slot : "button";
+
+	const renderIcon = () => {
+		if (loading && loadingIcon) {
+			return <span className="animate-spin">{loadingIcon}</span>;
+		}
+		if (loading && !loadingIcon) {
+			return <span className="animate-spin">⟳</span>;
+		}
+		return icon;
+	};
+
+	const renderContent = () => {
+		const iconElement = renderIcon();
+		
+		if (!iconElement) {
+			return children;
+		}
+
+		if (iconPosition === "right") {
+			return (
+				<>
+					{children}
+					{iconElement}
+				</>
+			);
+		}
+
+		return (
+			<>
+				{iconElement}
+				{children}
+			</>
+		);
+	};
 
 	return (
 		<Comp
 			data-slot="button"
 			className={cn(buttonVariants({ variant, size, className }))}
+			disabled={disabled || loading}
 			{...props}
-		/>
+		>
+			{renderContent()}
+		</Comp>
 	);
 }
 

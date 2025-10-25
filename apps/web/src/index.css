@@ -10,7 +10,7 @@
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  @apply bg-background text-foreground;
 
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
@@ -19,71 +19,74 @@ body {
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* 🎨 LIGHT MODE - Paleta Personalizada */
+  --background: #FFFFFF;                    /* Fundo Principal (Formulário) */
+  --foreground: #333333;                    /* Texto Principal (Títulos, Logo) */
+  --card: #FFFFFF;                          /* Cards brancos */
+  --card-foreground: #333333;               /* Texto dos cards */
+  --popover: #FFFFFF;                       /* Popovers brancos */
+  --popover-foreground: #333333;            /* Texto dos popovers */
+  --primary: #4DB6AC;                       /* Cor de Destaque (Botão) - Verde-água */
+  --primary-foreground: #FFFFFF;            /* Texto sobre botão */
+  --secondary: #F0F9F8;                     /* Fundo da Ilustração - Verde-água claro */
+  --secondary-foreground: #333333;          /* Texto sobre fundo secundário */
+  --muted: #F0F9F8;                         /* Fundo muted */
+  --muted-foreground: #888888;              /* Texto Secundário (Placeholders, Links) */
+  --accent: #F0F9F8;                        /* Accent */
+  --accent-foreground: #333333;             /* Texto accent */
+  --destructive: #E57373;                   /* Vermelho para erros */
+  --border: #E0E0E0;                        /* Bordas dos Campos (Inputs) */
+  --input: #E0E0E0;                         /* Inputs */
+  --ring: #4DB6AC;                          /* Ring focus - Verde-água */
+  --chart-1: #4DB6AC;                       /* Chart 1 */
+  --chart-2: #81C784;                       /* Chart 2 */
+  --chart-3: #64B5F6;                       /* Chart 3 */
+  --chart-4: #FFB74D;                       /* Chart 4 */
+  --chart-5: #F06292;                       /* Chart 5 */
+  --sidebar: #FFFFFF;                       /* Sidebar */
+  --sidebar-foreground: #333333;            /* Texto sidebar */
+  --sidebar-primary: #4DB6AC;               /* Primary sidebar */
+  --sidebar-primary-foreground: #FFFFFF;    /* Texto primary sidebar */
+  --sidebar-accent: #F0F9F8;                /* Accent sidebar */
+  --sidebar-accent-foreground: #333333;     /* Texto accent sidebar */
+  --sidebar-border: #E0E0E0;                /* Borda sidebar */
+  --sidebar-ring: #4DB6AC;                  /* Ring sidebar */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* 🎨 DARK MODE - Paleta Personalizada */
+  --background: #2D2D2D;                    /* Fundo Principal (Formulário) - Cinza-escuro */
+  --foreground: #FAFAFA;                    /* Texto Principal (Títulos, Logo) - Branco suave */
+  --card: #2D2D2D;                          /* Cards escuros */
+  --card-foreground: #FAFAFA;               /* Texto dos cards */
+  --popover: #2D2D2D;                       /* Popovers escuros */
+  --popover-foreground: #FAFAFA;            /* Texto dos popovers */
+  --primary: #4DB6AC;                       /* Cor de Destaque (Botão) - Verde-água (mesmo) */
+  --primary-foreground: #FFFFFF;            /* Texto sobre botão */
+  --secondary: #F0F9F8;                     /* Fundo da Ilustração - Verde-água claro (mesmo) */
+  --secondary-foreground: #333333;          /* Texto sobre fundo secundário */
+  --muted: #2D2D2D;                         /* Fundo muted escuro */
+  --muted-foreground: #BDBDBD;              /* Texto Secundário (Placeholders, Links) - Cinza claro */
+  --accent: #2D2D2D;                        /* Accent escuro */
+  --accent-foreground: #FAFAFA;             /* Texto accent */
+  --destructive: #E57373;                   /* Vermelho para erros */
+  --border: #555555;                        /* Bordas dos Campos (Inputs) - Cinza escuro */
+  --input: #555555;                         /* Inputs escuros */
+  --ring: #4DB6AC;                          /* Ring focus - Verde-água */
+  --chart-1: #4DB6AC;                       /* Chart 1 */
+  --chart-2: #81C784;                       /* Chart 2 */
+  --chart-3: #64B5F6;                       /* Chart 3 */
+  --chart-4: #FFB74D;                       /* Chart 4 */
+  --chart-5: #F06292;                       /* Chart 5 */
+  --sidebar: #2D2D2D;                       /* Sidebar escura */
+  --sidebar-foreground: #FAFAFA;            /* Texto sidebar */
+  --sidebar-primary: #4DB6AC;               /* Primary sidebar */
+  --sidebar-primary-foreground: #FFFFFF;    /* Texto primary sidebar */
+  --sidebar-accent: #2D2D2D;                /* Accent sidebar */
+  --sidebar-accent-foreground: #FAFAFA;     /* Texto accent sidebar */
+  --sidebar-border: #555555;                /* Borda sidebar */
+  --sidebar-ring: #4DB6AC;                  /* Ring sidebar */
 }
 
 @theme inline {
