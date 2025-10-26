@@ -1,29 +1,34 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./UserMenu";
+import Logo from "@/assets/images/logo.png";
 
 export default function Header() {
-	const links = [{ to: "/", label: "Home" }] as const;
-
 	return (
-		<div>
-			<div className="flex flex-row items-center justify-between px-2 py-1">
-				<nav className="flex gap-4 text-lg">
-					{links.map(({ to, label }) => {
-						return (
-							<Link key={to} href={to}>
-								{label}
-							</Link>
-						);
-					})}
-				</nav>
-				<div className="flex items-center gap-2">
-					<UserMenu />
+		<div className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+			<div className="container mx-auto flex h-24 items-center justify-between">
+				<div className="flex items-center gap-3">
 					<ModeToggle />
 				</div>
+
+				<Link href="/" className="absolute left-1/2 -translate-x-1/2">
+					<Image 
+						src={Logo} 
+						alt="Presence System" 
+						width={300} 
+						height={300}
+						className="w-auto cursor-pointer transition-opacity hover:opacity-80"
+						priority
+					/>
+				</Link>
+
+				<div className="flex items-center gap-3">
+					<UserMenu />
+				</div>
 			</div>
-			<hr />
+			<hr className="mt-0" />
 		</div>
 	);
 }
