@@ -2,6 +2,7 @@
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import Header from "@/components/header";
 
 const TITLE_TEXT = `
  ██████╗ ███████╗████████╗████████╗███████╗██████╗
@@ -24,6 +25,7 @@ export default function Home() {
 
 	return (
 		<ProtectedRoute>
+			<Header />
 			<div className="container mx-auto max-w-3xl px-4 py-2">
 				<pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
 				<div className="grid gap-6">

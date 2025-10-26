@@ -1,4 +1,4 @@
-import type { LoginRequest, LoginResponse } from '@/types/auth';
+import type { LoginRequest, LoginResponse, User } from '@/types/auth';
 import { authUtils } from '@/utils/auth.utils';
 import { applicationUtils } from '@/utils/application.utils';
 
@@ -48,6 +48,7 @@ export class AuthService {
       this.token = authUtils.extractTokenFromHeader(authHeader);
       if (this.token) {
         authUtils.saveToken(this.token);
+        this.saveUserData(data.data.attributes);
       }
     }
 
@@ -61,9 +62,37 @@ export class AuthService {
   public logout(): void {
     this.token = null;
     authUtils.removeToken();
+    this.removeUserData();
   }
 
   public isAuthenticated(): boolean {
     return this.token !== null;
+  }
+
+  public saveUserData(user: User): void {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('user_data', JSON.stringify(user));
+    }
+  }
+
+  public getUserData(): User | null {
+    if (typeof window !== 'undefined') {
+      const userData = sessionStorage.getItem('user_data');
+      if (userData) {
+        try {
+          return JSON.parse(userData);
+        } catch (error) {
+          console.error('Erro ao fazer parse dos dados do usuário:', error);
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  public removeUserData(): void {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('user_data');
+    }
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginSchema, type LoginFormData } from '@/validators/auth.validator';
@@ -11,7 +12,7 @@ import { Loader2, Lock } from 'lucide-react';
 
 export default function LoginForm() {
   const { login, isLoading } = useAuth();
-
+  const router = useRouter();
   const form = useForm({
     defaultValues: {
       email: '',
@@ -28,6 +29,7 @@ export default function LoginForm() {
       try {
         await login(value.email, value.password);
         toast.success('Login realizado com sucesso!');
+        router.push('/');
       } catch (error) {
         toast.error(
           error instanceof Error 

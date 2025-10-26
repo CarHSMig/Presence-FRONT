@@ -2,11 +2,32 @@
 
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import panelImageLight from '@/assets/images/login/login_panel_light.jpg';
 import panelImageDark from '@/assets/images/login/login_panel_dark.jpg';
 
 export default function LoginPanel() {
   const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="w-2/4 relative">
+        <Image 
+          src={panelImageLight} 
+          alt="Painel de Login" 
+          fill
+          className="object-cover"
+          priority
+        />
+      </div>
+    );
+  }
   
   const panelImage = theme === 'dark' ? panelImageDark : panelImageLight;
   

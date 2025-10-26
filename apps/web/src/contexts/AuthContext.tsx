@@ -12,14 +12,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const authService = AuthService.getInstance();
-    const storedToken = authService.getToken();
-    
-    if (storedToken) {
-      setToken(storedToken);
-    }
-    
-    setIsLoading(false);
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true);
+        const authService = AuthService.getInstance();
+        const storedToken = authService.getToken();
+        
+        if (storedToken) {
+          setToken(storedToken);
+          try {
+            const userData = authService.getUserData();
+            if (userData) {
+              setUser(userData);
+            }
+          } catch (error) {
+            console.warn('Token inválido, fazendo logout');
+            authService.logout();
+            setToken(null);
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar autenticação:', error);
+        setToken(null);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
