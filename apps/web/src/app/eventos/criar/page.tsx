@@ -174,7 +174,7 @@ export default function CriarEventoPage() {
 				console.log('✅ Evento criado com sucesso!', responseData);
 
 				toast.success('Evento criado com sucesso!');
-				router.push('/eventos');
+				router.push('/');
 			} catch (error) {
 				console.error('❌ Erro ao criar evento:', error);
 				toast.error(
@@ -295,37 +295,46 @@ export default function CriarEventoPage() {
 	return (
 		<ProtectedRoute>
 			<AuthenticatedLayout className="p-4 md:p-8 bg-linear-to-br from-background via-background to-secondary/20">
+				{loadingCourses ? (
+					<div className="container mx-auto max-w-2xl flex items-center justify-center min-h-[60vh]">
+						<div className="flex flex-col items-center gap-4">
+							<Loader2 className="h-8 w-8 animate-spin text-primary" />
+							<p className="text-sm text-muted-foreground">Carregando formulário...</p>
+						</div>
+					</div>
+				) : (
 				<div className="container mx-auto max-w-2xl">
 					{/* Header com botão de voltar - Redesign Moderno */}
-					<div className="mb-10">
-						<Link href="/">
-							<Button
-								variant="ghost"
-								size="sm"
-								className="mb-6 hover:bg-secondary/50 transition-colors duration-200"
-							>
-								<ArrowLeft className="h-4 w-4 mr-2" />
-								Voltar
-							</Button>
-						</Link>
-
-						<div className="flex items-center gap-3">
-							<div className="p-3 rounded-lg bg-primary/10 backdrop-blur-sm">
-								<Sparkles className="h-6 w-6 text-primary" />
+					<div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
+						<div className="flex items-start justify-between gap-4 mb-6">
+							<div className="flex items-center gap-3 flex-1">
+								<div className="p-3 rounded-lg bg-primary/10 backdrop-blur-sm animate-in zoom-in duration-500 delay-100">
+									<Sparkles className="h-6 w-6 text-primary" />
+								</div>
+								<div className="flex-1 animate-in fade-in slide-in-from-left-4 duration-500 delay-200">
+									<h1 className="text-4xl md:text-5xl font-bold text-foreground">
+										Criar Evento
+									</h1>
+									<p className="text-base text-muted-foreground mt-2">
+										Organize um novo evento e inspire sua comunidade
+									</p>
+								</div>
 							</div>
-							<div>
-								<h1 className="text-4xl md:text-5xl font-bold text-foreground">
-									Criar Evento
-								</h1>
-								<p className="text-base text-muted-foreground mt-2">
-									Organize um novo evento e inspire sua comunidade
-								</p>
-							</div>
+							<Link href="/" className="animate-in fade-in slide-in-from-right-4 duration-500 delay-300">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="hover:bg-secondary/50 transition-colors duration-200 shrink-0"
+								>
+									<ArrowLeft className="h-4 w-4 mr-2" />
+									Voltar
+								</Button>
+							</Link>
 						</div>
 					</div>
 
 					{/* Formulário - Redesign Moderno com Mais Espaçamento */}
-					<div className="rounded-2xl border border-border/50 bg-card shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden backdrop-blur-sm">
+					<div className="rounded-2xl border border-border/50 bg-card shadow-lg hover:shadow-xl transition-shadow overflow-hidden backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
 						{/* Componente de Erros de Validação */}
 						{(() => {
 							if (!showValidationErrors) return null;
@@ -729,6 +738,7 @@ export default function CriarEventoPage() {
 						</form>
 					</div>
 				</div>
+				)}
 			</AuthenticatedLayout>
 		</ProtectedRoute>
 	);

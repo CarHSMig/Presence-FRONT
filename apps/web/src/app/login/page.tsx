@@ -10,7 +10,7 @@ export default function LoginPage() {
       <div className="w-2/4 flex items-center justify-center bg-background p-8 relative">
         <div className="w-full max-w-sm">
           <div className="flex items-left justify-center">
-            <Image src={Logo} alt="Logo" width={500} height={500} className="mb-4 items-left" />
+            <Image src={Logo} alt="Logo" width={500} height={500} className="items-left" />
           </div>
           <LoginForm />
         </div>
