@@ -2,6 +2,8 @@
 
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import CardBannerImage from "@/assets/images/home/card_banner.png";
 
 interface EventLocation {
 	road?: string;
@@ -69,7 +71,8 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
 				"hover:shadow-xl hover:shadow-primary/10 transition-all duration-300",
 				"hover:-translate-y-1 hover:border-primary/30",
 				"overflow-hidden cursor-pointer",
-				"animate-in fade-in slide-in-from-bottom-4"
+				"animate-in fade-in slide-in-from-bottom-4",
+				"flex flex-col"
 			)}
 			style={{
 				animationDelay: `${index * 100}ms`,
@@ -79,7 +82,23 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
 			
 			<div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/50 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-			<div className="relative p-6 space-y-5">
+			{/* Imagem do Banner */}
+			<div className="relative w-full h-48 overflow-hidden bg-linear-to-br from-primary/20 via-primary/10 to-primary/5">
+				<Image
+					src={CardBannerImage}
+					alt={event.attributes.name}
+					fill
+					className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+					priority={index < 4}
+				/>
+				{/* Overlay gradiente sutil */}
+				<div className="absolute inset-0 bg-linear-to-t from-card/60 via-card/20 to-transparent" />
+				{/* Overlay adicional no hover */}
+				<div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+			</div>
+
+			<div className="relative p-6 space-y-5 flex-1">
 				<div className="space-y-2">
 					<h3 className="text-lg font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
 						{event.attributes.name}
