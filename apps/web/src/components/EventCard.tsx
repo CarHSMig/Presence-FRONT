@@ -3,6 +3,7 @@
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import CardBannerImage from "@/assets/images/home/card_banner.png";
 
 interface EventLocation {
@@ -35,6 +36,12 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, index = 0 }: EventCardProps) {
+	const router = useRouter();
+
+	const handleCardClick = () => {
+		router.push(`/eventos/${event.id}` as any);
+	};
+
 	const formatDateTime = (dateString: string) => {
 		const date = new Date(dateString);
 		const day = date.getDate().toString().padStart(2, '0');
@@ -66,6 +73,7 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
 
 	return (
 		<div
+			onClick={handleCardClick}
 			className={cn(
 				"group relative rounded-xl border border-border/50 bg-card shadow-sm",
 				"hover:shadow-xl hover:shadow-primary/10 transition-all duration-300",
@@ -77,6 +85,15 @@ export function EventCard({ event, index = 0 }: EventCardProps) {
 			style={{
 				animationDelay: `${index * 100}ms`,
 			}}
+			role="button"
+			tabIndex={0}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					handleCardClick();
+				}
+			}}
+			aria-label={`Ver detalhes do evento ${event.attributes.name}`}
 		>
 			<div className="absolute inset-0 bg-linear-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-primary/5 transition-all duration-300 pointer-events-none" />
 			
