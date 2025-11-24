@@ -321,15 +321,15 @@ export default function CriarEventoPage() {
 								</div>
 							</div>
 							<Link href="/" className="animate-in fade-in slide-in-from-right-4 duration-500 delay-300">
-								<Button
-									variant="ghost"
-									size="sm"
+							<Button
+								variant="ghost"
+								size="sm"
 									className="hover:bg-secondary/50 transition-colors duration-200 shrink-0"
-								>
-									<ArrowLeft className="h-4 w-4 mr-2" />
-									Voltar
-								</Button>
-							</Link>
+							>
+								<ArrowLeft className="h-4 w-4 mr-2" />
+								Voltar
+							</Button>
+						</Link>
 						</div>
 					</div>
 
@@ -465,15 +465,15 @@ export default function CriarEventoPage() {
 												Descrição Detalhada
 											</label>
 											<div className="relative">
-												<textarea
+											<textarea
 													placeholder="Descreva o evento, objetivos, agenda, informações importantes e detalhes que os participantes precisam saber..."
-													value={field.state.value}
-													onChange={(e) => field.handleChange(e.target.value)}
-													onBlur={field.handleBlur}
-													aria-invalid={field.state.meta.errors.length > 0}
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												onBlur={field.handleBlur}
+												aria-invalid={field.state.meta.errors.length > 0}
 													rows={5}
 													className="w-full rounded-lg border border-input bg-transparent px-4 py-3 text-base shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground dark:bg-input/20 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-												/>
+											/>
 											</div>
 											{field.state.meta.errors.length > 0 && (
 												<p className="text-sm text-destructive flex items-center gap-1">
@@ -505,29 +505,29 @@ export default function CriarEventoPage() {
 								<div>
 									<h3 className="text-sm font-medium text-foreground mb-4">Início do Evento</h3>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-										<form.Field
-											name="data"
-											children={(field) => (
-												<Input
+									<form.Field
+										name="data"
+										children={(field) => (
+											<Input
 													label="Data de Início"
-													type="date"
-													value={field.state.value}
-													onChange={(e) => field.handleChange(e.target.value)}
-													onBlur={field.handleBlur}
-													aria-invalid={field.state.meta.errors.length > 0}
+												type="date"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												onBlur={field.handleBlur}
+												aria-invalid={field.state.meta.errors.length > 0}
 													icon={<Calendar className="h-4 w-4 text-primary" />}
-													iconPosition="left"
-													error={field.state.meta.errors.length > 0}
-													errorMessage={field.state.meta.errors[0] || 'Erro de validação'}
+												iconPosition="left"
+												error={field.state.meta.errors.length > 0}
+												errorMessage={field.state.meta.errors[0] || 'Erro de validação'}
 													className="text-base"
-												/>
-											)}
-										/>
+											/>
+										)}
+									/>
 
-										<form.Field
-											name="hora"
-											children={(field) => (
-												<Input
+									<form.Field
+										name="hora"
+										children={(field) => (
+											<Input
 													label="Hora de Início"
 													type="time"
 													value={field.state.value}
@@ -573,19 +573,19 @@ export default function CriarEventoPage() {
 											children={(field) => (
 												<Input
 													label="Hora de Término"
-													type="time"
-													value={field.state.value}
-													onChange={(e) => field.handleChange(e.target.value)}
-													onBlur={field.handleBlur}
-													aria-invalid={field.state.meta.errors.length > 0}
+												type="time"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												onBlur={field.handleBlur}
+												aria-invalid={field.state.meta.errors.length > 0}
 													icon={<Clock className="h-4 w-4 text-primary" />}
-													iconPosition="left"
-													error={field.state.meta.errors.length > 0}
-													errorMessage={field.state.meta.errors[0] || 'Erro de validação'}
+												iconPosition="left"
+												error={field.state.meta.errors.length > 0}
+												errorMessage={field.state.meta.errors[0] || 'Erro de validação'}
 													className="text-base"
-												/>
-											)}
-										/>
+											/>
+										)}
+									/>
 									</div>
 								</div>
 
