@@ -24,11 +24,19 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	UserCheck,
-	UserX
+	UserX,
+	Edit,
+	FileText,
+	AlertCircle,
+	Sparkles
 } from "lucide-react";
 import QRCodeSVG from "react-qr-code";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Multiselect, type MultiselectOption } from '@/components/ui/multiselect';
+import { useForm } from '@tanstack/react-form';
+import { createEventSchema, type CreateEventFormData } from '@/validators/event.validator';
 import Image from "next/image";
 import CardBannerImage from "@/assets/images/home/card_banner.png";
 
@@ -57,6 +65,7 @@ interface EventAttributes {
 	latitude?: string;
 	longitude?: string;
 	creator_id?: string;
+	face_auth?: boolean;
 }
 
 interface CourseAttributes {
@@ -145,6 +154,16 @@ export default function EventoDetailPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [presenceUrl, setPresenceUrl] = useState<string | null>(null);
 	const [showQrModal, setShowQrModal] = useState(false);
+	const [showEditModal, setShowEditModal] = useState(false);
+	const [isEditing, setIsEditing] = useState(false);
+	
+	// Estados para edição
+	const [editCourses, setEditCourses] = useState<Course[]>([]);
+	const [editClassRooms, setEditClassRooms] = useState<ClassRoom[]>([]);
+	const [loadingEditCourses, setLoadingEditCourses] = useState(false);
+	const [loadingEditClassRooms, setLoadingEditClassRooms] = useState(false);
+	const [selectedEditCourseIds, setSelectedEditCourseIds] = useState<string[]>([]);
+	const [showEditValidationErrors, setShowEditValidationErrors] = useState(false);
 	
 	// Estados para participantes
 	const [participants, setParticipants] = useState<Participant[]>([]);
@@ -312,6 +331,132 @@ export default function EventoDetailPage() {
 		}
 	};
 
+	// Função para abrir modal de edição e preencher dados
+	const handleOpenEditModal = () => {
+		if (!event) return;
+		
+		const startDateTime = formatEventDateTimeForForm(event.attributes.event_start);
+		const endDateTime = formatEventDateTimeForForm(event.attributes.event_end);
+		
+		// Preencher form com dados do evento
+		editForm.setFieldValue('nome', event.attributes.name);
+		editForm.setFieldValue('descricao', event.attributes.description || '');
+		editForm.setFieldValue('data', startDateTime.date);
+		editForm.setFieldValue('hora', startDateTime.time);
+		editForm.setFieldValue('dataFim', endDateTime.date);
+		editForm.setFieldValue('horaFim', endDateTime.time);
+		editForm.setFieldValue('local', formatLocation(event.attributes.location));
+		editForm.setFieldValue('locationOptional', event.attributes.location_optional);
+		editForm.setFieldValue('face_auth', event.attributes.face_auth || false);
+		
+		// Preencher cursos e turmas selecionados
+		const currentCourseIds = event.relationships?.courses?.data?.map(c => c.id) || [];
+		const currentClassRoomIds = event.relationships?.class_rooms?.data?.map(cr => cr.id) || [];
+		editForm.setFieldValue('course_ids', currentCourseIds);
+		editForm.setFieldValue('class_room_ids', currentClassRoomIds);
+		setSelectedEditCourseIds(currentCourseIds);
+		
+		setShowEditModal(true);
+		setShowEditValidationErrors(false);
+	};
+
+	// Buscar cursos ao abrir modal de edição
+	useEffect(() => {
+		if (!showEditModal) return;
+
+		const fetchEditCourses = async () => {
+			try {
+				setLoadingEditCourses(true);
+				const token = authUtils.getToken();
+				if (!token) return;
+
+				const baseUrl = applicationUtils.getBaseUrl();
+				if (!baseUrl) return;
+
+				const response = await fetch(`${baseUrl}/admin/courses`, {
+					method: 'GET',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`,
+					},
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setEditCourses(data.data || []);
+				}
+			} catch (error) {
+				console.error('Erro ao buscar cursos:', error);
+				toast.error('Erro ao carregar cursos');
+			} finally {
+				setLoadingEditCourses(false);
+			}
+		};
+
+		fetchEditCourses();
+	}, [showEditModal]);
+
+	// Buscar turmas quando cursos são selecionados no modal de edição
+	useEffect(() => {
+		if (!showEditModal) return;
+
+		const fetchEditClassRooms = async () => {
+			if (selectedEditCourseIds.length === 0) {
+				setEditClassRooms([]);
+				editForm.setFieldValue('class_room_ids', []);
+				return;
+			}
+
+			try {
+				setLoadingEditClassRooms(true);
+				const token = authUtils.getToken();
+				if (!token) return;
+
+				const baseUrl = applicationUtils.getBaseUrl();
+				if (!baseUrl) return;
+
+				const params = new URLSearchParams();
+				selectedEditCourseIds.forEach((id: string) => {
+					params.append('course_ids[]', id);
+				});
+
+				const response = await fetch(`${baseUrl}/admin/events/classrooms_by_courses?${params.toString()}`, {
+					method: 'GET',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`,
+					},
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					const fetchedClassRooms = data.data || [];
+					setEditClassRooms(fetchedClassRooms);
+					
+					// Remover turmas selecionadas que não pertencem mais aos cursos selecionados
+					setTimeout(() => {
+						const currentClassRoomIds = editForm.state.values.class_room_ids || [];
+						const validClassRoomIds = currentClassRoomIds.filter((id: string) => 
+							fetchedClassRooms.some((cr: ClassRoom) => cr.id === id)
+						);
+						
+						if (validClassRoomIds.length !== currentClassRoomIds.length) {
+							editForm.setFieldValue('class_room_ids', validClassRoomIds);
+						}
+					}, 0);
+				}
+			} catch (error) {
+				console.error('Erro ao buscar turmas:', error);
+				toast.error('Erro ao carregar turmas');
+			} finally {
+				setLoadingEditClassRooms(false);
+			}
+		};
+
+		fetchEditClassRooms();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedEditCourseIds, showEditModal]);
+
 	const formatDateTime = (dateString: string) => {
 		const date = new Date(dateString);
 		const day = date.getDate().toString().padStart(2, '0');
@@ -337,6 +482,176 @@ export default function EventoDetailPage() {
 		
 		return parts.length > 0 ? parts.join(', ') : 'Localização não informada';
 	};
+
+	// Função para formatar data/hora do evento para o form
+	const formatEventDateTimeForForm = (dateTimeString: string) => {
+		const date = new Date(dateTimeString);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		const hours = String(date.getHours()).padStart(2, '0');
+		const minutes = String(date.getMinutes()).padStart(2, '0');
+		
+		return {
+			date: `${year}-${month}-${day}`,
+			time: `${hours}:${minutes}`,
+		};
+	};
+
+	// Form de edição
+	const editForm = useForm({
+		defaultValues: {
+			nome: '',
+			descricao: '',
+			data: '',
+			hora: '',
+			dataFim: '',
+			horaFim: '',
+			local: '',
+			locationOptional: false,
+			face_auth: false,
+			course_ids: [] as string[],
+			class_room_ids: [] as string[],
+		} as CreateEventFormData,
+		validators: {
+			onChange: ({ value }) => {
+				const result = createEventSchema.safeParse(value);
+				if (result.success) return undefined;
+				return result.error.flatten().fieldErrors.nome?.[0] ||
+					result.error.flatten().fieldErrors.data?.[0] ||
+					result.error.flatten().fieldErrors.hora?.[0] ||
+					result.error.flatten().fieldErrors.dataFim?.[0] ||
+					result.error.flatten().fieldErrors.horaFim?.[0] ||
+					result.error.flatten().fieldErrors.local?.[0] ||
+					'Erro de validação';
+			},
+		},
+		onSubmitInvalid: ({ value }) => {
+			setShowEditValidationErrors(true);
+			const result = createEventSchema.safeParse(value);
+			if (!result.success) {
+				const errors = result.error.flatten().fieldErrors;
+				const errorMessages: string[] = [];
+				const fieldLabels: Record<string, string> = {
+					nome: 'Nome do Evento',
+					data: 'Data de Início',
+					hora: 'Hora de Início',
+					dataFim: 'Data de Término',
+					horaFim: 'Hora de Término',
+					local: 'Local do Evento',
+				};
+				Object.entries(errors).forEach(([field, messages]) => {
+					if (messages && messages.length > 0) {
+						const label = fieldLabels[field] || field;
+						errorMessages.push(`${label}: ${messages[0]}`);
+					}
+				});
+				if (errorMessages.length > 0) {
+					toast.error(
+						`Por favor, corrija os seguintes erros:\n${errorMessages.join('\n')}`,
+						{ duration: 6000 }
+					);
+				}
+			}
+		},
+		onSubmit: async ({ value }) => {
+			try {
+				setIsEditing(true);
+				const token = authUtils.getToken();
+				if (!token) {
+					toast.error('Você precisa estar autenticado');
+					return;
+				}
+
+				// Formatar data e hora de início
+				const eventStart = `${value.data}T${value.hora}:00`;
+				// Formatar data e hora de término
+				const eventEnd = `${value.dataFim}T${value.horaFim}:00`;
+
+				// Montar o payload no formato JSON:API
+				const payload = {
+					data: {
+						type: "event",
+						id: eventId,
+						attributes: {
+							name: value.nome,
+							...(value.descricao && { description: value.descricao }),
+							event_start: eventStart,
+							event_end: eventEnd,
+							location_optional: value.locationOptional,
+							face_auth: value.face_auth,
+							location: value.local,
+							course_ids: value.course_ids || [],
+							class_room_ids: value.class_room_ids || [],
+						}
+					}
+				};
+
+				const baseUrl = applicationUtils.getBaseUrl();
+				if (!baseUrl) {
+					throw new Error('URL do servidor não configurada');
+				}
+
+				const url = `${baseUrl}/admin/events/${eventId}`;
+				const response = await fetch(url, {
+					method: 'PATCH',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`,
+					},
+					body: JSON.stringify(payload),
+				});
+
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({}));
+					throw new Error(
+						errorData.message || 
+						errorData.error ||
+						`Erro ao atualizar evento: ${response.status} ${response.statusText}`
+					);
+				}
+
+				toast.success('Evento atualizado com sucesso!');
+				setShowEditModal(false);
+				
+				// Recarregar os dados do evento
+				const refreshResponse = await fetch(`${baseUrl}/admin/events/${eventId}?include=courses,class_rooms`, {
+					method: 'GET',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`,
+					},
+				});
+
+				if (refreshResponse.ok) {
+					const refreshData: EventResponse = await refreshResponse.json();
+					setEvent(refreshData.data);
+					
+					// Atualizar cursos e turmas
+					const fetchedCourses: Course[] = [];
+					const fetchedClassRooms: ClassRoom[] = [];
+					refreshData.included?.forEach((item) => {
+						if (item.type === 'course') {
+							fetchedCourses.push(item as Course);
+						} else if (item.type === 'class_rooms') {
+							fetchedClassRooms.push(item as ClassRoom);
+						}
+					});
+					setCourses(fetchedCourses);
+					setClassRooms(fetchedClassRooms);
+				}
+			} catch (error) {
+				console.error('Erro ao atualizar evento:', error);
+				toast.error(
+					error instanceof Error 
+						? error.message 
+						: 'Erro ao atualizar evento. Tente novamente.'
+				);
+			} finally {
+				setIsEditing(false);
+			}
+		},
+	});
 
 	if (loading) {
 		return (
@@ -782,7 +1097,7 @@ export default function EventoDetailPage() {
 									</div>
 								)}
 
-								{/* Card de Ações (para futuras implementações) */}
+								{/* Card de Ações */}
 								<div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
 									<h3 className="text-lg font-semibold text-foreground mb-4">
 										Ações
@@ -791,16 +1106,11 @@ export default function EventoDetailPage() {
 										<Button 
 											variant="outline" 
 											className="w-full justify-start"
-											disabled
+											onClick={handleOpenEditModal}
+											disabled={isEditing}
 										>
+											<Edit className="h-4 w-4 mr-2" />
 											Editar Evento
-										</Button>
-										<Button 
-											variant="outline" 
-											className="w-full justify-start"
-											disabled
-										>
-											Ver Participantes
 										</Button>
 									</div>
 								</div>
@@ -852,6 +1162,409 @@ export default function EventoDetailPage() {
 									Fechar
 								</Button>
 							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Modal de Edição de Evento */}
+				{showEditModal && (
+					<div
+						className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+						onClick={() => !isEditing && setShowEditModal(false)}
+					>
+						<div
+							className="relative bg-card rounded-2xl border border-border/50 shadow-2xl p-6 md:p-8 max-w-4xl w-full my-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+							onClick={(e) => e.stopPropagation()}
+						>
+							{/* Botão de Fechar */}
+							<button
+								onClick={() => !isEditing && setShowEditModal(false)}
+								disabled={isEditing}
+								className="absolute top-4 right-4 p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+								aria-label="Fechar modal"
+							>
+								<X className="h-5 w-5" />
+							</button>
+
+							{/* Header do Modal */}
+							<div className="mb-6">
+								<div className="flex items-center gap-3 mb-2">
+									<div className="p-2 rounded-lg bg-primary/10">
+										<Sparkles className="h-5 w-5 text-primary" />
+									</div>
+									<h2 className="text-2xl font-bold text-foreground">
+										Editar Evento
+									</h2>
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Atualize as informações do evento
+								</p>
+							</div>
+
+							{/* Erros de Validação */}
+							{showEditValidationErrors && (() => {
+								const result = createEventSchema.safeParse(editForm.state.values);
+								if (!result.success) {
+									const errors = result.error.flatten().fieldErrors;
+									const errorList: Array<{ field: string; message: string; label: string }> = [];
+									const fieldLabels: Record<string, string> = {
+										nome: 'Nome do Evento',
+										data: 'Data de Início',
+										hora: 'Hora de Início',
+										dataFim: 'Data de Término',
+										horaFim: 'Hora de Término',
+										local: 'Local do Evento',
+									};
+									Object.entries(errors).forEach(([field, messages]) => {
+										if (messages && messages.length > 0) {
+											errorList.push({
+												field,
+												message: messages[0],
+												label: fieldLabels[field] || field,
+											});
+										}
+									});
+									if (errorList.length > 0) {
+										return (
+											<div className="p-4 mb-6 rounded-lg bg-destructive/10 border border-destructive/30">
+												<div className="flex items-start gap-3">
+													<AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+													<div className="flex-1">
+														<h3 className="text-sm font-semibold text-destructive mb-2">
+															Erros de Validação
+														</h3>
+														<ul className="space-y-1">
+															{errorList.map((error, index) => (
+																<li key={index} className="text-sm text-destructive/90">
+																	<span className="font-medium">{error.label}:</span> {error.message}
+																</li>
+															))}
+														</ul>
+													</div>
+												</div>
+											</div>
+										);
+									}
+								}
+								return null;
+							})()}
+
+							{/* Formulário */}
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+									const result = createEventSchema.safeParse(editForm.state.values);
+									if (!result.success) {
+										setShowEditValidationErrors(true);
+									} else {
+										setShowEditValidationErrors(false);
+									}
+									editForm.handleSubmit().catch((error) => {
+										console.error('Erro no submit do formulário:', error);
+									});
+								}}
+								className="space-y-6"
+							>
+								{/* Informações Básicas */}
+								<div className="space-y-4">
+									<div>
+										<h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+											<FileText className="h-5 w-5 text-primary" />
+											Informações do Evento
+										</h3>
+									</div>
+
+									<editForm.Field
+										name="nome"
+										children={(field) => (
+											<Input
+												label="Nome do Evento"
+												type="text"
+												placeholder="Ex: Workshop de Tecnologia Avançada"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												onBlur={field.handleBlur}
+												error={field.state.meta.errors.length > 0}
+												errorMessage={field.state.meta.errors[0]}
+												disabled={isEditing}
+											/>
+										)}
+									/>
+
+									<editForm.Field
+										name="descricao"
+										children={(field) => (
+											<div className="space-y-2">
+												<label className="text-sm font-semibold text-foreground">
+													Descrição Detalhada
+												</label>
+												<textarea
+													placeholder="Descreva o evento..."
+													value={field.state.value}
+													onChange={(e) => field.handleChange(e.target.value)}
+													onBlur={field.handleBlur}
+													rows={4}
+													disabled={isEditing}
+													className="w-full rounded-lg border border-input bg-transparent px-4 py-3 text-sm shadow-sm transition-all outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+												/>
+											</div>
+										)}
+									/>
+								</div>
+
+								{/* Data e Hora */}
+								<div className="space-y-4">
+									<div>
+										<h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+											<Calendar className="h-5 w-5 text-primary" />
+											Agendamento
+										</h3>
+									</div>
+
+									<div>
+										<h4 className="text-sm font-medium text-foreground mb-3">Início do Evento</h4>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<editForm.Field
+												name="data"
+												children={(field) => (
+													<Input
+														label="Data de Início"
+														type="date"
+														value={field.state.value}
+														onChange={(e) => field.handleChange(e.target.value)}
+														onBlur={field.handleBlur}
+														icon={<Calendar className="h-4 w-4 text-primary" />}
+														iconPosition="left"
+														error={field.state.meta.errors.length > 0}
+														errorMessage={field.state.meta.errors[0]}
+														disabled={isEditing}
+													/>
+												)}
+											/>
+											<editForm.Field
+												name="hora"
+												children={(field) => (
+													<Input
+														label="Hora de Início"
+														type="time"
+														value={field.state.value}
+														onChange={(e) => field.handleChange(e.target.value)}
+														onBlur={field.handleBlur}
+														icon={<Clock className="h-4 w-4 text-primary" />}
+														iconPosition="left"
+														error={field.state.meta.errors.length > 0}
+														errorMessage={field.state.meta.errors[0]}
+														disabled={isEditing}
+													/>
+												)}
+											/>
+										</div>
+									</div>
+
+									<div>
+										<h4 className="text-sm font-medium text-foreground mb-3">Término do Evento</h4>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<editForm.Field
+												name="dataFim"
+												children={(field) => (
+													<Input
+														label="Data de Término"
+														type="date"
+														value={field.state.value}
+														onChange={(e) => field.handleChange(e.target.value)}
+														onBlur={field.handleBlur}
+														icon={<Calendar className="h-4 w-4 text-primary" />}
+														iconPosition="left"
+														error={field.state.meta.errors.length > 0}
+														errorMessage={field.state.meta.errors[0]}
+														disabled={isEditing}
+													/>
+												)}
+											/>
+											<editForm.Field
+												name="horaFim"
+												children={(field) => (
+													<Input
+														label="Hora de Término"
+														type="time"
+														value={field.state.value}
+														onChange={(e) => field.handleChange(e.target.value)}
+														onBlur={field.handleBlur}
+														icon={<Clock className="h-4 w-4 text-primary" />}
+														iconPosition="left"
+														error={field.state.meta.errors.length > 0}
+														errorMessage={field.state.meta.errors[0]}
+														disabled={isEditing}
+													/>
+												)}
+											/>
+										</div>
+									</div>
+
+									<editForm.Field
+										name="local"
+										children={(field) => (
+											<Input
+												label="Local do Evento"
+												type="text"
+												placeholder="Ex: Auditório Principal"
+												value={field.state.value}
+												onChange={(e) => field.handleChange(e.target.value)}
+												onBlur={field.handleBlur}
+												icon={<MapPin className="h-4 w-4 text-primary" />}
+												iconPosition="left"
+												error={field.state.meta.errors.length > 0}
+												errorMessage={field.state.meta.errors[0]}
+												disabled={isEditing}
+											/>
+										)}
+									/>
+
+									<editForm.Field
+										name="locationOptional"
+										children={(field) => (
+											<div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-secondary/30">
+												<div className="flex-1">
+													<label className="text-sm font-semibold text-foreground block mb-1 cursor-pointer" onClick={() => !isEditing && field.handleChange(!field.state.value)}>
+														Localização Opcional
+													</label>
+													<p className="text-xs text-muted-foreground">
+														Validação de localização dos participantes
+													</p>
+												</div>
+												<button
+													type="button"
+													role="switch"
+													aria-checked={field.state.value}
+													onClick={() => !isEditing && field.handleChange(!field.state.value)}
+													disabled={isEditing}
+													className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+														field.state.value ? 'bg-primary' : 'bg-input'
+													} disabled:opacity-50`}
+												>
+													<span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+														field.state.value ? 'translate-x-6' : 'translate-x-1'
+													}`} />
+												</button>
+											</div>
+										)}
+									/>
+
+									<editForm.Field
+										name="face_auth"
+										children={(field) => (
+											<div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-secondary/30">
+												<div className="flex-1">
+													<label className="text-sm font-semibold text-foreground block mb-1 cursor-pointer" onClick={() => !isEditing && field.handleChange(!field.state.value)}>
+														Ativar reconhecimento fácial
+													</label>
+													<p className="text-xs text-muted-foreground">
+														Permite validação de presença através de reconhecimento facial
+													</p>
+												</div>
+												<button
+													type="button"
+													role="switch"
+													aria-checked={field.state.value}
+													onClick={() => !isEditing && field.handleChange(!field.state.value)}
+													disabled={isEditing}
+													className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+														field.state.value ? 'bg-primary' : 'bg-input'
+													} disabled:opacity-50`}
+												>
+													<span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+														field.state.value ? 'translate-x-6' : 'translate-x-1'
+													}`} />
+												</button>
+											</div>
+										)}
+									/>
+								</div>
+
+								{/* Cursos e Turmas */}
+								<div className="space-y-4">
+									<div>
+										<h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+											<GraduationCap className="h-5 w-5 text-primary" />
+											Cursos e Turmas
+										</h3>
+									</div>
+
+									<editForm.Field
+										name="course_ids"
+										children={(field) => {
+											const courseOptions: MultiselectOption[] = editCourses.map(course => ({
+												id: course.id,
+												label: course.attributes.name,
+											}));
+
+											return (
+												<Multiselect
+													options={courseOptions}
+													selectedIds={field.state.value}
+													onChange={(selectedIds) => {
+														field.handleChange(selectedIds);
+														setSelectedEditCourseIds(selectedIds);
+													}}
+													label="Cursos"
+													placeholder="Selecione os cursos"
+													loading={loadingEditCourses}
+													disabled={isEditing}
+												/>
+											);
+										}}
+									/>
+
+									<editForm.Field
+										name="class_room_ids"
+										children={(field) => {
+											const classRoomOptions: MultiselectOption[] = editClassRooms.map(classRoom => ({
+												id: classRoom.id,
+												label: `${classRoom.attributes.name} - ${classRoom.attributes.course.name}`,
+											}));
+
+											return (
+												<Multiselect
+													options={classRoomOptions}
+													selectedIds={field.state.value}
+													onChange={(selectedIds) => field.handleChange(selectedIds)}
+													label="Turmas"
+													placeholder={
+														selectedEditCourseIds.length === 0
+															? "Selecione cursos primeiro"
+															: "Selecione as turmas"
+													}
+													loading={loadingEditClassRooms}
+													disabled={isEditing || selectedEditCourseIds.length === 0}
+												/>
+											);
+										}}
+									/>
+								</div>
+
+								{/* Botões */}
+								<div className="flex gap-4 pt-4 border-t border-border/50">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => setShowEditModal(false)}
+										disabled={isEditing}
+										className="flex-1"
+									>
+										Cancelar
+									</Button>
+									<Button
+										type="submit"
+										disabled={isEditing}
+										className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+										loading={isEditing}
+										loadingIcon={<Loader2 className="h-4 w-4 animate-spin" />}
+									>
+										{isEditing ? 'Salvando...' : 'Salvar Alterações'}
+									</Button>
+								</div>
+							</form>
 						</div>
 					</div>
 				)}
