@@ -7,8 +7,7 @@ export const createEventSchema = z.object({
     .min(3, 'Nome do evento deve ter pelo menos 3 caracteres'),
   descricao: z
     .string()
-    .min(1, 'Descrição é obrigatória')
-    .min(10, 'Descrição deve ter pelo menos 10 caracteres'),
+    .optional(),
   data: z
     .string()
     .min(1, 'Data de início é obrigatória'),
@@ -26,6 +25,9 @@ export const createEventSchema = z.object({
     .min(1, 'Local é obrigatório')
     .min(3, 'Local deve ter pelo menos 3 caracteres'),
   locationOptional: z
+    .boolean()
+    .default(false),
+  face_auth: z
     .boolean()
     .default(false),
   course_ids: z

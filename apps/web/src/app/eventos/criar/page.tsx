@@ -52,6 +52,7 @@ export default function CriarEventoPage() {
 			horaFim: '',
 			local: '',
 			locationOptional: false,
+			face_auth: false,
 			course_ids: [] as string[],
 			class_room_ids: [] as string[],
 		} as CreateEventFormData,
@@ -60,7 +61,6 @@ export default function CriarEventoPage() {
 				const result = createEventSchema.safeParse(value);
 				if (result.success) return undefined;
 				return result.error.flatten().fieldErrors.nome?.[0] ||
-					result.error.flatten().fieldErrors.descricao?.[0] ||
 					result.error.flatten().fieldErrors.data?.[0] ||
 					result.error.flatten().fieldErrors.hora?.[0] ||
 					result.error.flatten().fieldErrors.dataFim?.[0] ||
@@ -82,7 +82,6 @@ export default function CriarEventoPage() {
 				// Mapear erros para mensagens amigáveis
 				const fieldLabels: Record<string, string> = {
 					nome: 'Nome do Evento',
-					descricao: 'Descrição',
 					data: 'Data de Início',
 					hora: 'Hora de Início',
 					dataFim: 'Data de Término',
@@ -128,10 +127,11 @@ export default function CriarEventoPage() {
 						type: "event",
 						attributes: {
 							name: value.nome,
-							description: value.descricao,
+							...(value.descricao && { description: value.descricao }),
 							event_start: eventStart,
 							event_end: eventEnd,
 							location_optional: value.locationOptional,
+							face_auth: value.face_auth,
 							location: value.local,
 							course_ids: value.course_ids || [],
 							class_room_ids: value.class_room_ids || [],
@@ -346,7 +346,6 @@ export default function CriarEventoPage() {
 								
 								const fieldLabels: Record<string, string> = {
 									nome: 'Nome do Evento',
-									descricao: 'Descrição',
 									data: 'Data de Início',
 									hora: 'Hora de Início',
 									dataFim: 'Data de Término',
@@ -452,7 +451,7 @@ export default function CriarEventoPage() {
 											aria-invalid={field.state.meta.errors.length > 0}
 											error={field.state.meta.errors.length > 0}
 											errorMessage={field.state.meta.errors[0] || 'Erro de validação'}
-											className="text-base"
+											className="text-base pl-4"
 										/>
 									)}
 								/>
@@ -626,6 +625,43 @@ export default function CriarEventoPage() {
 												role="switch"
 												aria-checked={field.state.value}
 												aria-label="Localização opcional"
+												onClick={() => field.handleChange(!field.state.value)}
+												className={`
+													relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+													${field.state.value 
+														? 'bg-primary' 
+														: 'bg-input'
+													}
+												`}
+											>
+												<span
+													className={`
+														inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200
+														${field.state.value ? 'translate-x-6' : 'translate-x-1'}
+													`}
+												/>
+											</button>
+										</div>
+									)}
+								/>
+
+								<form.Field
+									name="face_auth"
+									children={(field) => (
+										<div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/40 transition-colors duration-200">
+											<div className="flex-1">
+												<label className="text-sm font-semibold text-foreground block mb-1 cursor-pointer" onClick={() => field.handleChange(!field.state.value)}>
+													Ativar reconhecimento fácial dos alunos
+												</label>
+												<p className="text-xs text-muted-foreground">
+													Permite validação de presença através de reconhecimento facial
+												</p>
+											</div>
+											<button
+												type="button"
+												role="switch"
+												aria-checked={field.state.value}
+												aria-label="Ativar reconhecimento fácial dos alunos"
 												onClick={() => field.handleChange(!field.state.value)}
 												className={`
 													relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2

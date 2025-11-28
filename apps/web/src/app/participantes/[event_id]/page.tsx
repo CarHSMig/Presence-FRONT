@@ -380,6 +380,21 @@ export default function ParticipantEventPage() {
 		}
 	};
 
+	// Função auxiliar para converter base64 em Blob
+	const base64ToBlob = (base64: string, mimeType: string = 'image/jpeg'): Blob => {
+		// Remove o prefixo data:image/jpeg;base64, se existir
+		const base64Data = base64.includes(',') ? base64.split(',')[1] : base64;
+		const byteCharacters = atob(base64Data);
+		const byteNumbers = new Array(byteCharacters.length);
+		
+		for (let i = 0; i < byteCharacters.length; i++) {
+			byteNumbers[i] = byteCharacters.charCodeAt(i);
+		}
+		
+		const byteArray = new Uint8Array(byteNumbers);
+		return new Blob([byteArray], { type: mimeType });
+	};
+
 	// Submeter confirmação de presença
 	const handleSubmitPresence = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -395,6 +410,11 @@ export default function ParticipantEventPage() {
 			return;
 		}
 
+		if (!capturedPhoto) {
+			toast.error("Por favor, tire uma foto antes de confirmar a presença.");
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {
@@ -403,24 +423,23 @@ export default function ParticipantEventPage() {
 				throw new Error('URL do servidor não configurada');
 			}
 
-				const payload = {
-				data: {
-					type: "participant",
-					attributes: {
-						ra: ra.trim(),
-						latitude: coords.latitude,
-						longitude: coords.longitude,
-						// photo será adicionado depois quando necessário
-					}
-				}
-			};
+			// Criar FormData
+			const formData = new FormData();
+
+			// Adicionar dados no formato JSON-API mantendo a estrutura dentro de attributes
+			formData.append('data[type]', 'participant');
+			formData.append('data[attributes][ra]', ra.trim());
+			formData.append('data[attributes][latitude]', coords.latitude.toString());
+			formData.append('data[attributes][longitude]', coords.longitude.toString());
+
+			// Converter foto base64 para Blob e adicionar ao FormData como "photo"
+			const photoBlob = base64ToBlob(capturedPhoto, 'image/jpeg');
+			formData.append('photo', photoBlob, 'photo.jpg');
 
 			const response = await fetch(`${baseUrl}/participants/${eventId}/confirm_presence`, {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(payload),
+				// Não definir Content-Type - o navegador vai definir automaticamente com o boundary correto
+				body: formData,
 			});
 
 			if (response.ok) {
@@ -931,7 +950,7 @@ export default function ParticipantEventPage() {
 									</Button>
 									<Button
 										type="submit"
-										disabled={!coords || !ra.trim() || isSubmitting}
+										disabled={!coords || !ra.trim() || !capturedPhoto || isSubmitting}
 										className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
 										loading={isSubmitting}
 										loadingIcon={<Loader2 className="h-4 w-4 animate-spin" />}
