@@ -65,12 +65,20 @@ function Input({
 				"file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
 				"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 				error && "border-destructive ring-destructive/20",
-				// Padding para ícones
-				icon && iconPosition === "left" && "pl-10",
-				icon && iconPosition === "right" && "pr-10",
-				isSecretVariant && icon && iconPosition === "left" && "pl-10",
-				isSecretVariant && shouldShowToggle && "pr-20", // Espaço para ícone + toggle
-				isSecretVariant && !shouldShowToggle && icon && iconPosition === "right" && "pr-10",
+				// Padding padrão quando não há ícone
+				!icon && !isSecretVariant && "px-4",
+				// Padding para ícone à esquerda - pl-10 garante espaço para o ícone (40px), pr-4 para o texto à direita
+				icon && iconPosition === "left" && !isSecretVariant && "pl-10 pr-4",
+				// Padding para ícone à direita
+				icon && iconPosition === "right" && !isSecretVariant && "pl-4 pr-10",
+				// Padding para variante secret com ícone à esquerda
+				isSecretVariant && icon && iconPosition === "left" && "pl-10 pr-4",
+				// Padding para variante secret com toggle
+				isSecretVariant && shouldShowToggle && "pl-4 pr-20", // Espaço para ícone + toggle
+				// Padding para variante secret com ícone à direita sem toggle
+				isSecretVariant && !shouldShowToggle && icon && iconPosition === "right" && "pl-4 pr-10",
+				// Padding para variante secret sem ícone e sem toggle
+				isSecretVariant && !icon && !shouldShowToggle && "px-4",
 				className,
 			)}
 			{...props}

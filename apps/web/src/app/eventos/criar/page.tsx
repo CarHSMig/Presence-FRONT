@@ -465,13 +465,13 @@ export default function CriarEventoPage() {
 											</label>
 											<div className="relative">
 											<textarea
-													placeholder="Descreva o evento, objetivos, agenda, informações importantes e detalhes que os participantes precisam saber..."
+												placeholder="Descreva o evento, objetivos, agenda, informações importantes e detalhes que os participantes precisam saber..."
 												value={field.state.value}
 												onChange={(e) => field.handleChange(e.target.value)}
 												onBlur={field.handleBlur}
 												aria-invalid={field.state.meta.errors.length > 0}
 													rows={5}
-													className="w-full rounded-lg border border-input bg-transparent px-4 py-3 text-base shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground dark:bg-input/20 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+													className="w-full rounded-lg border border-input bg-transparent px-4 py-3 text-base shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground dark:bg-input/20 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-base"
 											/>
 											</div>
 											{field.state.meta.errors.length > 0 && (
