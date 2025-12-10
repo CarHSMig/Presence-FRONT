@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { useForm } from '@tanstack/react-form';
 import { createClassRoomSchema, type CreateClassRoomFormData } from '@/validators/classroom.validator';
 import { cn } from "@/lib/utils";
+import { LoadMoreButton } from "@/components/LoadMoreButton";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 
 interface CourseAttributes {
 	id: string;
@@ -65,12 +67,19 @@ export default function TurmasPage() {
 	const [classRooms, setClassRooms] = useState<ClassRoom[]>([]);
 	const [loadingCourses, setLoadingCourses] = useState(true);
 	const [loadingClassRooms, setLoadingClassRooms] = useState(false);
+	const [loadingMore, setLoadingMore] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [currentPage, setCurrentPage] = useState(1);
+	const [hasMore, setHasMore] = useState(true);
+	const perPage = 20;
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [editingClassRoom, setEditingClassRoom] = useState<ClassRoom | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showValidationErrors, setShowValidationErrors] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [classRoomToDelete, setClassRoomToDelete] = useState<string | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Buscar cursos ao carregar
 	useEffect(() => {
@@ -134,11 +143,15 @@ export default function TurmasPage() {
 		const fetchClassRooms = async () => {
 			if (!selectedCourseId) {
 				setClassRooms([]);
+				setCurrentPage(1);
+				setHasMore(true);
 				return;
 			}
 
 			try {
 				setLoadingClassRooms(true);
+				setCurrentPage(1);
+				setHasMore(true);
 				const token = authUtils.getToken();
 				if (!token) {
 					toast.error('Você precisa estar autenticado');
@@ -150,7 +163,7 @@ export default function TurmasPage() {
 					throw new Error('URL do servidor não configurada');
 				}
 
-				const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms`, {
+				const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms?per_page=${perPage}&page=1`, {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -164,6 +177,7 @@ export default function TurmasPage() {
 
 				const data: ClassRoomsResponse = await response.json();
 				setClassRooms(data.data || []);
+				setHasMore(data.data.length === perPage);
 			} catch (error) {
 				console.error('Erro ao buscar turmas:', error);
 				toast.error(
@@ -179,6 +193,52 @@ export default function TurmasPage() {
 
 		fetchClassRooms();
 	}, [selectedCourseId]);
+
+	// Função para carregar mais turmas
+	const handleLoadMore = async () => {
+		if (loadingMore || !hasMore || !selectedCourseId) return;
+
+		try {
+			setLoadingMore(true);
+			const token = authUtils.getToken();
+			if (!token) {
+				toast.error('Você precisa estar autenticado');
+				return;
+			}
+
+			const baseUrl = applicationUtils.getBaseUrl();
+			if (!baseUrl) {
+				throw new Error('URL do servidor não configurada');
+			}
+
+			const nextPage = currentPage + 1;
+			const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms?per_page=${perPage}&page=${nextPage}`, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error(`Erro ao buscar turmas: ${response.status}`);
+			}
+
+			const data: ClassRoomsResponse = await response.json();
+			setClassRooms(prev => [...prev, ...data.data]);
+			setHasMore(data.data.length === perPage);
+			setCurrentPage(nextPage);
+		} catch (error) {
+			console.error('Erro ao carregar mais turmas:', error);
+			toast.error(
+				error instanceof Error 
+					? error.message 
+					: 'Erro ao carregar mais turmas'
+			);
+		} finally {
+			setLoadingMore(false);
+		}
+	};
 
 	// Filtrar turmas por termo de busca
 	const filteredClassRooms = classRooms.filter((classRoom) =>
@@ -280,7 +340,8 @@ export default function TurmasPage() {
 				createForm.reset();
 				
 				// Recarregar turmas
-				const refreshResponse = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms`, {
+				setCurrentPage(1);
+				const refreshResponse = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms?per_page=${perPage}&page=1`, {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -291,6 +352,7 @@ export default function TurmasPage() {
 				if (refreshResponse.ok) {
 					const refreshData: ClassRoomsResponse = await refreshResponse.json();
 					setClassRooms(refreshData.data || []);
+					setHasMore(refreshData.data.length === perPage);
 				}
 			} catch (error) {
 				console.error('Erro ao criar turma:', error);
@@ -397,7 +459,8 @@ export default function TurmasPage() {
 				setEditingClassRoom(null);
 				
 				// Recarregar turmas
-				const refreshResponse = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms`, {
+				setCurrentPage(1);
+				const refreshResponse = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms?per_page=${perPage}&page=1`, {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -408,6 +471,7 @@ export default function TurmasPage() {
 				if (refreshResponse.ok) {
 					const refreshData: ClassRoomsResponse = await refreshResponse.json();
 					setClassRooms(refreshData.data || []);
+					setHasMore(refreshData.data.length === perPage);
 				}
 			} catch (error) {
 				console.error('Erro ao atualizar turma:', error);
@@ -442,21 +506,21 @@ export default function TurmasPage() {
 		setShowValidationErrors(false);
 	};
 
-	// Função para deletar turma
-	const handleDeleteClassRoom = async (classRoomId: string) => {
-		const classRoom = classRooms.find(cr => cr.id === classRoomId);
-		const classRoomName = classRoom?.attributes.name || 'esta turma';
+	// Função para abrir modal de deletar turma
+	const handleDeleteClassRoom = (classRoomId: string) => {
+		setClassRoomToDelete(classRoomId);
+		setShowDeleteModal(true);
+	};
 
-		if (!confirm(`Tem certeza que deseja deletar a turma "${classRoomName}"?\n\nEsta ação não pode ser desfeita.`)) {
-			return;
-		}
-
-		if (!selectedCourseId) {
-			toast.error('Curso não selecionado');
+	// Função para confirmar deletar turma
+	const confirmDeleteClassRoom = async () => {
+		if (!classRoomToDelete || !selectedCourseId) {
+			toast.error('Dados inválidos');
 			return;
 		}
 
 		try {
+			setIsDeleting(true);
 			const token = authUtils.getToken();
 			if (!token) {
 				toast.error('Você precisa estar autenticado');
@@ -468,7 +532,7 @@ export default function TurmasPage() {
 				throw new Error('URL do servidor não configurada');
 			}
 
-			const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${classRoomId}`, {
+			const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${classRoomToDelete}`, {
 				method: 'DELETE',
 				headers: {
 					'Content-Type': 'application/json',
@@ -488,7 +552,9 @@ export default function TurmasPage() {
 			toast.success('Turma deletada com sucesso!');
 			
 			// Remover turma da lista
-			setClassRooms(prev => prev.filter(cr => cr.id !== classRoomId));
+			setClassRooms(prev => prev.filter(cr => cr.id !== classRoomToDelete));
+			setShowDeleteModal(false);
+			setClassRoomToDelete(null);
 		} catch (error) {
 			console.error('Erro ao deletar turma:', error);
 			toast.error(
@@ -496,8 +562,12 @@ export default function TurmasPage() {
 					? error.message 
 					: 'Erro ao deletar turma. Tente novamente.'
 			);
+		} finally {
+			setIsDeleting(false);
 		}
 	};
+
+	const classRoomToDeleteData = classRooms.find(cr => cr.id === classRoomToDelete);
 
 	return (
 		<ProtectedRoute>
@@ -687,6 +757,15 @@ export default function TurmasPage() {
 											/>
 										))}
 									</div>
+
+									{/* Botão Carregar Mais */}
+									{!searchTerm && (
+										<LoadMoreButton
+											onClick={handleLoadMore}
+											loading={loadingMore}
+											hasMore={hasMore}
+										/>
+									)}
 								</>
 							)}
 						</div>
@@ -1053,6 +1132,20 @@ export default function TurmasPage() {
 						</div>
 					</div>
 				)}
+
+				{/* Modal de Confirmação de Exclusão */}
+				<ConfirmDeleteModal
+					isOpen={showDeleteModal}
+					onClose={() => {
+						setShowDeleteModal(false);
+						setClassRoomToDelete(null);
+					}}
+					onConfirm={confirmDeleteClassRoom}
+					title="Confirmar Exclusão"
+					message={classRoomToDeleteData ? `Tem certeza que deseja deletar a turma "${classRoomToDeleteData.attributes.name}"?` : 'Tem certeza que deseja deletar esta turma?'}
+					confirmText="Deletar Turma"
+					isLoading={isDeleting}
+				/>
 			</AuthenticatedLayout>
 		</ProtectedRoute>
 	);

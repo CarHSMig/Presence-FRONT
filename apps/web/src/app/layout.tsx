@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "presence-FRONT",
-	description: "presence-FRONT",
+	title: "faceClass",
+	description: "faceClass",
 };
 
 export default function RootLayout({

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { applicationUtils } from "@/utils/application.utils";
 import { toast } from "sonner";
 import { 
@@ -18,13 +19,16 @@ import {
 	Camera,
 	RotateCcw,
 	ChevronRight,
-	ChevronLeft
+	ChevronLeft,
+	Copy,
+	Check
 } from "lucide-react";
 import Image from "next/image";
 import CardBannerImage from "@/assets/images/home/card_banner.png";
 import Link from "next/link";
 import { ModeToggle } from "@/components/mode-toggle";
 import Logo from "@/assets/images/logo.png";
+import DarkLogo from "@/assets/images/dark-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -71,6 +75,8 @@ interface EventResponse {
 export default function ParticipantEventPage() {
 	const params = useParams();
 	const eventId = params?.event_id as string;
+	const { theme, resolvedTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
 
 	const [event, setEvent] = useState<EventData | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -84,6 +90,10 @@ export default function ParticipantEventPage() {
 	const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [locationError, setLocationError] = useState<string | null>(null);
+	const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+	const [showErrorAnimation, setShowErrorAnimation] = useState(false);
+	const [errorMessage, setErrorMessage] = useState<string>("");
+	const [linkCopied, setLinkCopied] = useState(false);
 	
 	// Estados para captura de foto
 	const [stream, setStream] = useState<MediaStream | null>(null);
@@ -92,6 +102,11 @@ export default function ParticipantEventPage() {
 	const [cameraError, setCameraError] = useState<string | null>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+
+	// Evitar hidratação mismatch
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	useEffect(() => {
 		const fetchEvent = async () => {
@@ -135,6 +150,10 @@ export default function ParticipantEventPage() {
 			fetchEvent();
 		}
 	}, [eventId]);
+
+	// Usar resolvedTheme para considerar o tema do sistema
+	const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+	const logoSrc = isDark ? DarkLogo : Logo;
 
 	const formatDateTime = (dateString: string) => {
 		const date = new Date(dateString);
@@ -443,16 +462,31 @@ export default function ParticipantEventPage() {
 			});
 
 			if (response.ok) {
-				toast.success("Sua presença foi confirmada com sucesso!");
-				handleCloseModal();
+				// Mostrar animação de sucesso
+				setShowSuccessAnimation(true);
+				setTimeout(() => {
+					setShowSuccessAnimation(false);
+					handleCloseModal();
+				}, 2000); // Fechar após 2 segundos
 			} else {
 				const errorData = await response.json().catch(() => ({}));
-				const errorMessage = errorData.error || errorData.message || `Erro: ${response.status}`;
-				toast.error(errorMessage);
+				const errorMsg = errorData.error || errorData.message || `Erro: ${response.status}`;
+				setErrorMessage(errorMsg);
+				setShowErrorAnimation(true);
+				setTimeout(() => {
+					setShowErrorAnimation(false);
+					setErrorMessage("");
+				}, 4000); // Fechar após 4 segundos
 			}
 		} catch (err) {
 			console.error('Erro ao confirmar presença:', err);
-			toast.error("Ocorreu um erro ao confirmar sua presença. Tente novamente.");
+			const errorMsg = err instanceof Error ? err.message : "Ocorreu um erro ao confirmar sua presença. Tente novamente.";
+			setErrorMessage(errorMsg);
+			setShowErrorAnimation(true);
+			setTimeout(() => {
+				setShowErrorAnimation(false);
+				setErrorMessage("");
+			}, 4000); // Fechar após 4 segundos
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -543,7 +577,7 @@ export default function ParticipantEventPage() {
 					</div>
 					<Link href="/" className="absolute left-1/2 -translate-x-1/2">
 						<Image 
-							src={Logo} 
+							src={logoSrc} 
 							alt="Presence System" 
 							width={300} 
 							height={300}
@@ -675,39 +709,108 @@ export default function ParticipantEventPage() {
 						className="relative bg-card rounded-2xl border border-border/50 shadow-2xl p-8 max-w-lg w-full animate-in zoom-in-95 duration-200"
 						onClick={(e) => e.stopPropagation()}
 					>
-						{/* Botão de Fechar */}
-						<button
-							onClick={handleCloseModal}
-							disabled={isSubmitting}
-							className="absolute top-4 right-4 p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
-							aria-label="Fechar modal"
-						>
-							<X className="h-5 w-5" />
-						</button>
+						{/* Botão de Fechar - Ocultar durante animações */}
+						{!showSuccessAnimation && !showErrorAnimation && (
+							<div className="absolute top-4 right-4">
+								<button
+									onClick={handleCloseModal}
+									disabled={isSubmitting}
+									className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+									aria-label="Fechar modal"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+						)}
 
-						{/* Indicador de Steps */}
-						<div className="flex items-center justify-center gap-2 mb-6">
-							<div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-								<div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
-									currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-								}`}>
-									1
+						{/* Indicador de Steps - Ocultar quando mostrar animação */}
+						{!showSuccessAnimation && !showErrorAnimation && (
+							<div className="flex items-center justify-center gap-2 mb-6">
+								<div className={`flex items-center gap-2 ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
+									<div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+										currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+									}`}>
+										1
+									</div>
+									<span className="text-sm font-medium hidden sm:inline">Foto</span>
 								</div>
-								<span className="text-sm font-medium hidden sm:inline">Foto</span>
-							</div>
-							<div className={`h-px w-12 ${currentStep >= 2 ? 'bg-primary' : 'bg-border'}`} />
-							<div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-								<div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
-									currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-								}`}>
-									2
+								<div className={`h-px w-12 ${currentStep >= 2 ? 'bg-primary' : 'bg-border'}`} />
+								<div className={`flex items-center gap-2 ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
+									<div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+										currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+									}`}>
+										2
+									</div>
+									<span className="text-sm font-medium hidden sm:inline">Dados</span>
 								</div>
-								<span className="text-sm font-medium hidden sm:inline">Dados</span>
 							</div>
-						</div>
+						)}
+
+						{/* Animação de Sucesso dentro do Modal */}
+						{showSuccessAnimation && (
+							<div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in-95 duration-500">
+								{/* Círculo de fundo animado */}
+								<div className="relative flex items-center justify-center mb-6">
+									<div className="absolute w-24 h-24 bg-green-500/20 rounded-full animate-ping" />
+									<div className="absolute w-24 h-24 bg-green-500/30 rounded-full animate-pulse" />
+									
+									{/* Ícone de check */}
+									<div className="relative z-10 flex items-center justify-center w-20 h-20 bg-green-500 rounded-full shadow-lg animate-in zoom-in-95 duration-500">
+										<CheckCircle2 className="h-12 w-12 text-white" />
+									</div>
+								</div>
+								
+								{/* Mensagem de sucesso */}
+								<div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+									<h3 className="text-2xl font-bold text-foreground mb-2">
+										Presença Confirmada!
+									</h3>
+									<p className="text-sm text-muted-foreground">
+										Sua presença foi registrada com sucesso
+									</p>
+								</div>
+							</div>
+						)}
+
+						{/* Animação de Erro dentro do Modal */}
+						{showErrorAnimation && (
+							<div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in-95 duration-500">
+								{/* Círculo de fundo animado */}
+								<div className="relative flex items-center justify-center mb-6">
+									<div className="absolute w-24 h-24 bg-destructive/20 rounded-full animate-ping" />
+									<div className="absolute w-24 h-24 bg-destructive/30 rounded-full animate-pulse" />
+									
+									{/* Ícone de X */}
+									<div className="relative z-10 flex items-center justify-center w-20 h-20 bg-destructive rounded-full shadow-lg animate-in zoom-in-95 duration-500">
+										<XCircle className="h-12 w-12 text-white" />
+									</div>
+								</div>
+								
+								{/* Mensagem de erro */}
+								<div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 px-4">
+									<h3 className="text-2xl font-bold text-foreground mb-3">
+										Erro ao Confirmar
+									</h3>
+									<p className="text-sm text-muted-foreground mb-6">
+										{errorMessage || "Ocorreu um erro ao confirmar sua presença. Tente novamente."}
+									</p>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setShowErrorAnimation(false);
+											setErrorMessage("");
+										}}
+										className="mt-4"
+									>
+										Tentar Novamente
+									</Button>
+								</div>
+							</div>
+						)}
 
 						{/* Step 1: Captura de Foto */}
-						{currentStep === 1 && (
+						{currentStep === 1 && !showSuccessAnimation && !showErrorAnimation && (
 							<div className="space-y-6">
 								<div>
 									<h3 className="text-2xl font-bold text-foreground mb-2">
@@ -855,7 +958,7 @@ export default function ParticipantEventPage() {
 						)}
 
 						{/* Step 2: RA e Localização */}
-						{currentStep === 2 && (
+						{currentStep === 2 && !showSuccessAnimation && !showErrorAnimation && (
 							<form onSubmit={handleSubmitPresence} className="space-y-6">
 								<div>
 									<h3 className="text-2xl font-bold text-foreground mb-2">
@@ -963,6 +1066,7 @@ export default function ParticipantEventPage() {
 					</div>
 				</div>
 			)}
+
 		</div>
 	);
 }

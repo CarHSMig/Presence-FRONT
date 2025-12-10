@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { useForm } from '@tanstack/react-form';
 import { editCourseSchema, type EditCourseFormData } from '@/validators/course.validator';
 import Image from "next/image";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import CardBannerImage from "@/assets/images/home/card_banner.png";
 
 interface CourseAttributes {
@@ -83,6 +84,8 @@ export default function CourseDetailPage() {
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 	const [showEditValidationErrors, setShowEditValidationErrors] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	useEffect(() => {
 		const fetchCourse = async () => {
@@ -277,17 +280,18 @@ export default function CourseDetailPage() {
 		setShowEditValidationErrors(false);
 	};
 
-	// Função para deletar curso
-	const handleDeleteCourse = async () => {
+	// Função para abrir modal de deletar curso
+	const handleDeleteCourse = () => {
+		if (!course) return;
+		setShowDeleteModal(true);
+	};
+
+	// Função para confirmar deletar curso
+	const confirmDeleteCourse = async () => {
 		if (!course) return;
 
-		const courseName = course.attributes.name;
-
-		if (!confirm(`Tem certeza que deseja deletar o curso "${courseName}"?\n\nEsta ação não pode ser desfeita e todas as turmas relacionadas também serão afetadas.`)) {
-			return;
-		}
-
 		try {
+			setIsDeleting(true);
 			const token = authUtils.getToken();
 			if (!token) {
 				toast.error('Você precisa estar autenticado');
@@ -317,6 +321,7 @@ export default function CourseDetailPage() {
 			}
 
 			toast.success('Curso deletado com sucesso!');
+			setShowDeleteModal(false);
 			router.push('/cursos');
 		} catch (error) {
 			console.error('Erro ao deletar curso:', error);
@@ -325,6 +330,8 @@ export default function CourseDetailPage() {
 					? error.message 
 					: 'Erro ao deletar curso. Tente novamente.'
 			);
+		} finally {
+			setIsDeleting(false);
 		}
 	};
 
@@ -801,6 +808,19 @@ export default function CourseDetailPage() {
 							</form>
 						</div>
 					</div>
+				)}
+
+				{/* Modal de Confirmação de Exclusão */}
+				{course && (
+					<ConfirmDeleteModal
+						isOpen={showDeleteModal}
+						onClose={() => setShowDeleteModal(false)}
+						onConfirm={confirmDeleteCourse}
+						title="Confirmar Exclusão"
+						message={`Tem certeza que deseja deletar o curso "${course.attributes.name}"?\n\nEsta ação não pode ser desfeita e todas as turmas relacionadas também serão afetadas.`}
+						confirmText="Deletar Curso"
+						isLoading={isDeleting}
+					/>
 				)}
 			</AuthenticatedLayout>
 		</ProtectedRoute>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthenticatedLayout from "@/components/authenticated-layout";
 import { authUtils } from "@/utils/auth.utils";
@@ -11,18 +11,18 @@ import {
 	Loader2, 
 	Users, 
 	User,
+	ArrowLeft,
+	Mail,
+	IdCard,
 	Search,
 	GraduationCap,
 	BookOpen,
 	AlertCircle,
-	IdCard,
-	Mail,
 	Plus,
 	Edit,
 	X,
 	Sparkles,
 	Trash2,
-	Image as ImageIcon,
 	Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,34 +32,6 @@ import { studentSchema, type StudentFormData } from '@/validators/student.valida
 import { cn } from "@/lib/utils";
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
-
-interface CourseAttributes {
-	id: string;
-	name: string;
-	periods: number;
-}
-
-interface Course {
-	id: string;
-	type: string;
-	attributes: CourseAttributes;
-}
-
-interface ClassRoomAttributes {
-	name: string;
-	period: number;
-	course: {
-		id: string;
-		name: string;
-		periods: number;
-	};
-}
-
-interface ClassRoom {
-	id: string;
-	type: string;
-	attributes: ClassRoomAttributes;
-}
 
 interface StudentAttributes {
 	name: string;
@@ -86,13 +58,6 @@ interface Student {
 	};
 }
 
-interface ClassRoomsResponse {
-	data: ClassRoom[];
-	jsonapi: {
-		version: string;
-	};
-}
-
 interface StudentsResponse {
 	data: Student[];
 	jsonapi: {
@@ -100,25 +65,16 @@ interface StudentsResponse {
 	};
 }
 
-interface CoursesResponse {
-	data: Course[];
-	jsonapi: {
-		version: string;
-	};
-}
-
 export default function AlunosPage() {
+	const params = useParams();
 	const router = useRouter();
-	const searchParams = useSearchParams();
-	const [courses, setCourses] = useState<Course[]>([]);
-	const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-	const [classRooms, setClassRooms] = useState<ClassRoom[]>([]);
-	const [selectedClassRoomId, setSelectedClassRoomId] = useState<string | null>(null);
+	const courseId = params?.course_id as string;
+	const classRoomId = params?.class_room_id as string;
+
 	const [students, setStudents] = useState<Student[]>([]);
-	const [loadingCourses, setLoadingCourses] = useState(true);
-	const [loadingClassRooms, setLoadingClassRooms] = useState(false);
-	const [loadingStudents, setLoadingStudents] = useState(false);
+	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [hasMore, setHasMore] = useState(true);
@@ -135,132 +91,18 @@ export default function AlunosPage() {
 		{ name: '', ra: '', email: '', photos: [] }
 	]);
 
-	// Buscar cursos ao carregar
-	useEffect(() => {
-		const fetchCourses = async () => {
-			try {
-				setLoadingCourses(true);
-				const token = authUtils.getToken();
-				if (!token) {
-					toast.error('Você precisa estar autenticado');
-					return;
-				}
-
-				const baseUrl = applicationUtils.getBaseUrl();
-				if (!baseUrl) {
-					throw new Error('URL do servidor não configurada');
-				}
-
-				const response = await fetch(`${baseUrl}/admin/courses`, {
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${token}`,
-					},
-				});
-
-				if (!response.ok) {
-					throw new Error(`Erro ao buscar cursos: ${response.status}`);
-				}
-
-				const data: CoursesResponse = await response.json();
-				setCourses(data.data || []);
-			} catch (error) {
-				console.error('Erro ao buscar cursos:', error);
-				toast.error(
-					error instanceof Error 
-						? error.message 
-						: 'Erro ao carregar cursos'
-				);
-			} finally {
-				setLoadingCourses(false);
-			}
-		};
-
-		fetchCourses();
-	}, []);
-
-	// Selecionar curso automaticamente se houver parâmetro na URL
-	useEffect(() => {
-		const courseIdFromUrl = searchParams.get('course_id');
-		if (courseIdFromUrl && courses.length > 0) {
-			const courseExists = courses.some(c => c.id === courseIdFromUrl);
-			if (courseExists) {
-				setSelectedCourseId(courseIdFromUrl);
-			}
-		}
-	}, [searchParams, courses]);
-
-	// Buscar turmas quando um curso é selecionado
-	useEffect(() => {
-		const fetchClassRooms = async () => {
-			if (!selectedCourseId) {
-				setClassRooms([]);
-				setSelectedClassRoomId(null);
-				setStudents([]);
-				return;
-			}
-
-			try {
-				setLoadingClassRooms(true);
-				const token = authUtils.getToken();
-				if (!token) {
-					toast.error('Você precisa estar autenticado');
-					return;
-				}
-
-				const baseUrl = applicationUtils.getBaseUrl();
-				if (!baseUrl) {
-					throw new Error('URL do servidor não configurada');
-				}
-
-				const response = await fetch(`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms`, {
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${token}`,
-					},
-				});
-
-				if (!response.ok) {
-					throw new Error(`Erro ao buscar turmas: ${response.status}`);
-				}
-
-				const data: ClassRoomsResponse = await response.json();
-				setClassRooms(data.data || []);
-			} catch (error) {
-				console.error('Erro ao buscar turmas:', error);
-				toast.error(
-					error instanceof Error 
-						? error.message 
-						: 'Erro ao carregar turmas'
-				);
-				setClassRooms([]);
-			} finally {
-				setLoadingClassRooms(false);
-			}
-		};
-
-		fetchClassRooms();
-	}, [selectedCourseId]);
-
-	// Buscar alunos quando uma turma é selecionada
 	useEffect(() => {
 		const fetchStudents = async () => {
-			if (!selectedCourseId || !selectedClassRoomId) {
-				setStudents([]);
-				setCurrentPage(1);
-				setHasMore(true);
-				return;
-			}
-
 			try {
-				setLoadingStudents(true);
+				setLoading(true);
+				setError(null);
 				setCurrentPage(1);
 				setHasMore(true);
+
 				const token = authUtils.getToken();
 				if (!token) {
 					toast.error('Você precisa estar autenticado');
+					router.push('/login');
 					return;
 				}
 
@@ -270,7 +112,7 @@ export default function AlunosPage() {
 				}
 
 				const response = await fetch(
-					`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students?per_page=${perPage}&page=1`,
+					`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students?per_page=${perPage}&page=1`,
 					{
 						method: 'GET',
 						headers: {
@@ -281,6 +123,9 @@ export default function AlunosPage() {
 				);
 
 				if (!response.ok) {
+					if (response.status === 404) {
+						throw new Error('Turma não encontrada');
+					}
 					throw new Error(`Erro ao buscar alunos: ${response.status}`);
 				}
 
@@ -289,23 +134,22 @@ export default function AlunosPage() {
 				setHasMore(data.data.length === perPage);
 			} catch (error) {
 				console.error('Erro ao buscar alunos:', error);
-				toast.error(
-					error instanceof Error 
-						? error.message 
-						: 'Erro ao carregar alunos'
-				);
-				setStudents([]);
+				const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar alunos';
+				setError(errorMessage);
+				toast.error(errorMessage);
 			} finally {
-				setLoadingStudents(false);
+				setLoading(false);
 			}
 		};
 
-		fetchStudents();
-	}, [selectedCourseId, selectedClassRoomId]);
+		if (courseId && classRoomId) {
+			fetchStudents();
+		}
+	}, [courseId, classRoomId, router]);
 
 	// Função para carregar mais alunos
 	const handleLoadMore = async () => {
-		if (loadingMore || !hasMore || !selectedCourseId || !selectedClassRoomId) return;
+		if (loadingMore || !hasMore || !courseId || !classRoomId) return;
 
 		try {
 			setLoadingMore(true);
@@ -322,7 +166,7 @@ export default function AlunosPage() {
 
 			const nextPage = currentPage + 1;
 			const response = await fetch(
-				`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students?per_page=${perPage}&page=${nextPage}`,
+				`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students?per_page=${perPage}&page=${nextPage}`,
 				{
 					method: 'GET',
 					headers: {
@@ -415,11 +259,6 @@ export default function AlunosPage() {
 
 	// Função para criar estudantes
 	const handleCreateStudents = async () => {
-		if (!selectedCourseId || !selectedClassRoomId) {
-			toast.error('Selecione um curso e uma turma primeiro');
-			return;
-		}
-
 		// Validação
 		const errors: string[] = [];
 		studentsFormData.forEach((student, index) => {
@@ -490,7 +329,7 @@ export default function AlunosPage() {
 			});
 
 			const response = await fetch(
-				`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students`,
+				`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students`,
 				{
 					method: 'POST',
 					headers: {
@@ -518,7 +357,7 @@ export default function AlunosPage() {
 			setCurrentPage(1);
 			setHasMore(true);
 			const refreshResponse = await fetch(
-				`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students?per_page=${perPage}&page=1`,
+				`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students?per_page=${perPage}&page=1`,
 				{
 					method: 'GET',
 					headers: {
@@ -588,7 +427,7 @@ export default function AlunosPage() {
 			}
 		},
 		onSubmit: async ({ value }) => {
-			if (!selectedCourseId || !selectedClassRoomId || !editingStudent) {
+			if (!editingStudent) {
 				toast.error('Dados inválidos');
 				return;
 			}
@@ -618,7 +457,7 @@ export default function AlunosPage() {
 				}
 
 				const response = await fetch(
-					`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students/${editingStudent.id}`,
+					`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students/${editingStudent.id}`,
 					{
 						method: 'PATCH',
 						headers: {
@@ -645,7 +484,7 @@ export default function AlunosPage() {
 				// Recarregar alunos
 				setCurrentPage(1);
 				const refreshResponse = await fetch(
-					`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students?per_page=${perPage}&page=1`,
+					`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students?per_page=${perPage}&page=1`,
 					{
 						method: 'GET',
 						headers: {
@@ -675,10 +514,6 @@ export default function AlunosPage() {
 
 	// Função para abrir modal de criação
 	const handleOpenCreateModal = () => {
-		if (!selectedCourseId || !selectedClassRoomId) {
-			toast.error('Selecione um curso e uma turma primeiro');
-			return;
-		}
 		setStudentsFormData([{ name: '', ra: '', email: '', photos: [] }]);
 		setShowCreateModal(true);
 		setShowValidationErrors(false);
@@ -702,10 +537,7 @@ export default function AlunosPage() {
 
 	// Função para confirmar deletar aluno
 	const confirmDeleteStudent = async () => {
-		if (!studentToDelete || !selectedCourseId || !selectedClassRoomId) {
-			toast.error('Dados inválidos');
-			return;
-		}
+		if (!studentToDelete) return;
 
 		try {
 			setIsDeleting(true);
@@ -721,7 +553,7 @@ export default function AlunosPage() {
 			}
 
 			const response = await fetch(
-				`${baseUrl}/admin/courses/${selectedCourseId}/class_rooms/${selectedClassRoomId}/students/${studentToDelete}`,
+				`${baseUrl}/admin/courses/${courseId}/class_rooms/${classRoomId}/students/${studentToDelete}`,
 				{
 					method: 'DELETE',
 					headers: {
@@ -760,8 +592,51 @@ export default function AlunosPage() {
 
 	const studentToDeleteData = students.find(s => s.id === studentToDelete);
 
-	const selectedCourse = courses.find(c => c.id === selectedCourseId);
-	const selectedClassRoom = classRooms.find(cr => cr.id === selectedClassRoomId);
+	if (loading) {
+		return (
+			<ProtectedRoute>
+				<AuthenticatedLayout className="p-0">
+					<div className="flex items-center justify-center min-h-screen">
+						<div className="flex flex-col items-center gap-4">
+							<Loader2 className="h-10 w-10 animate-spin text-primary" />
+							<p className="text-sm text-muted-foreground font-medium">
+								Carregando alunos...
+							</p>
+						</div>
+					</div>
+				</AuthenticatedLayout>
+			</ProtectedRoute>
+		);
+	}
+
+	if (error) {
+		return (
+			<ProtectedRoute>
+				<AuthenticatedLayout className="p-0">
+					<div className="container mx-auto max-w-7xl px-6 py-12">
+						<div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+							<div className="p-6 rounded-full bg-destructive/10 mb-4">
+								<AlertCircle className="h-12 w-12 text-destructive" />
+							</div>
+							<h3 className="text-xl font-semibold text-foreground mb-2">
+								{error}
+							</h3>
+							<p className="text-sm text-muted-foreground max-w-md mb-6">
+								Não foi possível carregar os alunos. Tente novamente mais tarde.
+							</p>
+							<Button
+								variant="outline"
+								onClick={() => router.push(`/turmas/${courseId}/${classRoomId}` as any)}
+							>
+								<ArrowLeft className="h-4 w-4 mr-2" />
+								Voltar para Turma
+							</Button>
+						</div>
+					</div>
+				</AuthenticatedLayout>
+			</ProtectedRoute>
+		);
+	}
 
 	return (
 		<ProtectedRoute>
@@ -771,17 +646,28 @@ export default function AlunosPage() {
 					<div className="absolute inset-0 bg-linear-to-r from-black/5 to-transparent pointer-events-none" />
 					
 					<div className="container mx-auto px-6 relative z-10">
-						<div className="flex flex-col items-center justify-center gap-6 min-h-[200px] md:min-h-[240px] py-8 md:py-12 text-center">
-							<div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
-								<User className="h-10 w-10 md:h-12 md:w-12 text-white" />
-							</div>
-							<div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-								<h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white drop-shadow-lg">
-									Alunos
-								</h1>
-								<p className="text-base md:text-lg text-white/90 max-w-2xl">
-									Visualize os alunos cadastrados por curso e turma
-								</p>
+						<div className="flex flex-col gap-6 min-h-[200px] md:min-h-[240px] py-8 md:py-12">
+							<Button
+								variant="ghost"
+								onClick={() => router.push(`/turmas/${courseId}/${classRoomId}` as any)}
+								className="w-fit text-white/90 hover:text-white hover:bg-white/10 mb-2"
+							>
+								<ArrowLeft className="h-4 w-4 mr-2" />
+								Voltar
+							</Button>
+							
+							<div className="flex flex-col items-start gap-6">
+								<div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
+									<User className="h-10 w-10 md:h-12 md:w-12 text-white" />
+								</div>
+								<div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+									<h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white drop-shadow-lg">
+										Alunos
+									</h1>
+									<p className="text-base md:text-lg text-white/90">
+										{students.length} {students.length === 1 ? 'aluno cadastrado' : 'alunos cadastrados'}
+									</p>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -789,384 +675,206 @@ export default function AlunosPage() {
 
 				{/* Conteúdo Principal */}
 				<div className="container mx-auto max-w-7xl px-6 py-8 md:py-12">
-					{/* Seletor de Curso */}
-					<div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500 delay-300">
-						<div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
-							<div className="flex items-center gap-3 mb-4">
-								<GraduationCap className="h-5 w-5 text-primary" />
-								<h2 className="text-lg font-semibold text-foreground">
-									Selecione um Curso
-								</h2>
-							</div>
-							{loadingCourses ? (
-								<div className="flex items-center gap-3">
-									<Loader2 className="h-4 w-4 animate-spin text-primary" />
-									<p className="text-sm text-muted-foreground">Carregando cursos...</p>
-								</div>
-							) : courses.length === 0 ? (
-								<p className="text-sm text-muted-foreground">
-									Nenhum curso cadastrado. Crie um curso primeiro para visualizar alunos.
-								</p>
-							) : (
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-									{courses.map((course) => (
-										<button
-											key={course.id}
-											onClick={() => {
-												setSelectedCourseId(course.id);
-												setSelectedClassRoomId(null);
-												setStudents([]);
-											}}
-											className={cn(
-												"p-4 rounded-lg border transition-all duration-200 text-left",
-												selectedCourseId === course.id
-													? "border-primary bg-primary/10 shadow-md"
-													: "border-border/50 bg-card hover:bg-secondary/50 hover:border-primary/30"
-											)}
-										>
-											<div className="flex items-start gap-3">
-												<div className={cn(
-													"p-2 rounded-lg shrink-0 transition-colors",
-													selectedCourseId === course.id
-														? "bg-primary/20"
-														: "bg-primary/10"
-												)}>
-													<GraduationCap className={cn(
-														"h-5 w-5 transition-colors",
-														selectedCourseId === course.id
-															? "text-primary"
-															: "text-primary/70"
-													)} />
-												</div>
-												<div className="flex-1 min-w-0">
-													<h3 className={cn(
-														"font-semibold mb-1 transition-colors",
-														selectedCourseId === course.id
-															? "text-primary"
-															: "text-foreground"
-													)}>
-														{course.attributes.name}
-													</h3>
-													<p className="text-xs text-muted-foreground">
-														{course.attributes.periods} {course.attributes.periods === 1 ? 'período' : 'períodos'}
-													</p>
-												</div>
-												{selectedCourseId === course.id && (
-													<div className="shrink-0">
-														<div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-															<div className="h-2 w-2 rounded-full bg-primary-foreground" />
-														</div>
-													</div>
-												)}
-											</div>
-										</button>
-									))}
-								</div>
+					{/* Barra de Busca */}
+					<div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-300">
+						<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+							<Input
+								type="text"
+								placeholder="Buscar alunos por nome, RA ou email..."
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+								icon={<Search className="h-4 w-4 text-primary" />}
+								iconPosition="left"
+								className="max-w-md w-full sm:w-auto"
+							/>
+							{searchTerm && (
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setSearchTerm("")}
+									className="text-muted-foreground hover:text-foreground"
+								>
+									Limpar busca
+								</Button>
 							)}
 						</div>
+						<Button 
+							onClick={handleOpenCreateModal}
+							className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
+						>
+							<Plus className="h-4 w-4 mr-2" />
+							Criar Aluno(s)
+						</Button>
 					</div>
 
-					{/* Seletor de Turma */}
-					{selectedCourseId && (
-						<div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500 delay-400">
-							<div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
-								<div className="flex items-center gap-3 mb-4">
-									<BookOpen className="h-5 w-5 text-primary" />
-									<h2 className="text-lg font-semibold text-foreground">
-										Selecione uma Turma
-									</h2>
-								</div>
-								{loadingClassRooms ? (
-									<div className="flex items-center gap-3">
-										<Loader2 className="h-4 w-4 animate-spin text-primary" />
-										<p className="text-sm text-muted-foreground">Carregando turmas...</p>
-									</div>
-								) : classRooms.length === 0 ? (
-									<p className="text-sm text-muted-foreground">
-										Nenhuma turma cadastrada para o curso {selectedCourse?.attributes.name}.
-									</p>
-								) : (
-									<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-										{classRooms.map((classRoom) => (
-											<button
-												key={classRoom.id}
-												onClick={() => setSelectedClassRoomId(classRoom.id)}
-												className={cn(
-													"p-4 rounded-lg border transition-all duration-200 text-left",
-													selectedClassRoomId === classRoom.id
-														? "border-primary bg-primary/10 shadow-md"
-														: "border-border/50 bg-card hover:bg-secondary/50 hover:border-primary/30"
-												)}
-											>
-												<div className="flex items-start gap-3">
-													<div className={cn(
-														"p-2 rounded-lg shrink-0 transition-colors",
-														selectedClassRoomId === classRoom.id
-															? "bg-primary/20"
-															: "bg-primary/10"
-													)}>
-														<BookOpen className={cn(
-															"h-5 w-5 transition-colors",
-															selectedClassRoomId === classRoom.id
-																? "text-primary"
-																: "text-primary/70"
-														)} />
-													</div>
-													<div className="flex-1 min-w-0">
-														<h3 className={cn(
-															"font-semibold mb-1 transition-colors",
-															selectedClassRoomId === classRoom.id
-																? "text-primary"
-																: "text-foreground"
-														)}>
-															{classRoom.attributes.name}
-														</h3>
-														<p className="text-xs text-muted-foreground">
-															{classRoom.attributes.period}º período
-														</p>
-													</div>
-													{selectedClassRoomId === classRoom.id && (
-														<div className="shrink-0">
-															<div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-																<div className="h-2 w-2 rounded-full bg-primary-foreground" />
-															</div>
-														</div>
-													)}
-												</div>
-											</button>
-										))}
-									</div>
-								)}
+					{/* Loading State */}
+					{loading ? (
+						<div className="flex items-center justify-center min-h-[400px]">
+							<div className="flex flex-col items-center gap-4">
+								<Loader2 className="h-10 w-10 animate-spin text-primary" />
+								<p className="text-sm text-muted-foreground font-medium">
+									Carregando alunos...
+								</p>
 							</div>
 						</div>
-					)}
-
-					{/* Listagem de Alunos */}
-					{selectedCourseId && selectedClassRoomId && (
-						<div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500">
-							{/* Barra de Busca */}
-							<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-								<div className="flex items-center gap-3">
-									<User className="h-5 w-5 text-primary" />
-									<div>
-										<h2 className="text-lg font-semibold text-foreground">
-											Alunos de {selectedClassRoom?.attributes.name}
-										</h2>
-										<p className="text-sm text-muted-foreground">
-											{loadingStudents 
-												? 'Carregando...' 
-												: `${students.length} ${students.length === 1 ? 'aluno encontrado' : 'alunos encontrados'}`
-											}
-										</p>
-									</div>
-								</div>
-								<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-									<Input
-										type="text"
-										placeholder="Buscar alunos por nome, RA ou email..."
-										value={searchTerm}
-										onChange={(e) => setSearchTerm(e.target.value)}
-										icon={<Search className="h-4 w-4 text-primary" />}
-										iconPosition="left"
-										className="max-w-md w-full sm:w-auto"
-									/>
-									<Button 
-										onClick={handleOpenCreateModal}
-										className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-									>
-										<Plus className="h-4 w-4 mr-2" />
-										Criar Aluno(s)
-									</Button>
-								</div>
-							</div>
-
-							{/* Loading State */}
-							{loadingStudents ? (
-								<div className="flex items-center justify-center min-h-[400px]">
-									<div className="flex flex-col items-center gap-4">
-										<Loader2 className="h-10 w-10 animate-spin text-primary" />
-										<p className="text-sm text-muted-foreground font-medium">
-											Carregando alunos...
-										</p>
-									</div>
-								</div>
-							) : filteredStudents.length === 0 ? (
-								<div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-									<div className="p-6 rounded-full bg-muted/50 mb-4">
-										<User className="h-12 w-12 text-muted-foreground" />
-									</div>
-									<h3 className="text-xl font-semibold text-foreground mb-2">
-										{searchTerm ? 'Nenhum aluno encontrado' : 'Nenhum aluno cadastrado'}
-									</h3>
-									<p className="text-sm text-muted-foreground max-w-md">
-										{searchTerm
-											? `Não encontramos alunos com o termo "${searchTerm}". Tente buscar com outro termo.`
-											: `Não há alunos cadastrados na turma "${selectedClassRoom?.attributes.name}".`}
-									</p>
-								</div>
-							) : (
-								<>
-									{/* Estatísticas */}
-									{searchTerm && (
-										<div className="flex items-center gap-4 text-sm text-muted-foreground">
-											<span>
-												{filteredStudents.length} {filteredStudents.length === 1 ? 'aluno encontrado' : 'alunos encontrados'}
-											</span>
-											<span className="text-primary">
-												Filtrando por: "{searchTerm}"
-											</span>
-										</div>
-									)}
-
-									{/* Grid de Alunos */}
-									<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-										{filteredStudents.map((student, index) => (
-											<div
-												key={student.id}
-												className={cn(
-													"group relative rounded-xl border border-border/50 bg-card shadow-sm",
-													"hover:shadow-xl hover:shadow-primary/10 transition-all duration-300",
-													"hover:-translate-y-1 hover:border-primary/30",
-													"overflow-hidden cursor-pointer",
-													"animate-in fade-in slide-in-from-bottom-4",
-													"flex flex-col"
-												)}
-												style={{
-													animationDelay: `${index * 100}ms`,
-												}}
-												onClick={() => {
-													router.push(`/alunos/${selectedCourseId}/${selectedClassRoomId}/${student.id}` as any);
-												}}
-												role="button"
-												tabIndex={0}
-												onKeyDown={(e) => {
-													if (e.key === 'Enter' || e.key === ' ') {
-														e.preventDefault();
-														router.push(`/alunos/${selectedCourseId}/${selectedClassRoomId}/${student.id}` as any);
-													}
-												}}
-												aria-label={`Ver detalhes do aluno ${student.attributes.name}`}
-											>
-												{/* Botões de Ação */}
-												<div className="absolute top-3 right-3 z-10 flex items-center gap-1">
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-														onClick={(e) => {
-															e.stopPropagation();
-															handleOpenEditModal(student);
-														}}
-														aria-label={`Editar aluno ${student.attributes.name}`}
-													>
-														<Edit className="h-4 w-4" />
-													</Button>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-														onClick={(e) => {
-															e.stopPropagation();
-															handleDeleteStudent(student.id);
-														}}
-														aria-label={`Deletar aluno ${student.attributes.name}`}
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
-												</div>
-												<div className="absolute inset-0 bg-linear-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-primary/5 transition-all duration-300 pointer-events-none" />
-												
-												<div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/50 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-												{/* Header com gradiente */}
-												<div className="relative w-full h-24 overflow-hidden bg-linear-to-br from-primary/20 via-primary/10 to-primary/5">
-													<div className="absolute inset-0 bg-linear-to-t from-card/60 via-card/20 to-transparent" />
-													<div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-													
-													{/* Ícone do aluno */}
-													<div className="absolute top-4 left-4 p-3 rounded-xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 group-hover:scale-110 transition-all duration-300">
-														<User className="h-6 w-6 text-primary" />
-													</div>
-												</div>
-
-												<div className="relative p-6 space-y-4 flex-1">
-													<div className="space-y-2">
-														<h3 className="text-lg font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
-															{student.attributes.name}
-														</h3>
-													</div>
-
-													<div className="h-px bg-border group-hover:bg-primary/30 transition-colors duration-300" />
-
-													<div className="space-y-3">
-														{/* RA */}
-														<div className="flex items-start gap-3">
-															<div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
-																<IdCard className="h-4 w-4 text-primary" />
-															</div>
-															<div className="flex-1 min-w-0">
-																<p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-																	RA
-																</p>
-																<p className="text-sm font-semibold text-foreground">
-																	{student.attributes.ra}
-																</p>
-															</div>
-														</div>
-
-														{/* Email */}
-														{student.attributes.email && (
-															<div className="flex items-start gap-3">
-																<div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
-																	<Mail className="h-4 w-4 text-primary" />
-																</div>
-																<div className="flex-1 min-w-0">
-																	<p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
-																		Email
-																	</p>
-																	<p className="text-sm font-semibold text-foreground line-clamp-2 break-all">
-																		{student.attributes.email}
-																	</p>
-																</div>
-															</div>
-														)}
-													</div>
-												</div>
-											</div>
-										))}
-									</div>
-
-									{/* Botão Carregar Mais */}
-									{!searchTerm && (
-										<LoadMoreButton
-											onClick={handleLoadMore}
-											loading={loadingMore}
-											hasMore={hasMore}
-										/>
-									)}
-								</>
-							)}
-						</div>
-					)}
-
-					{/* Estado inicial - sem seleção */}
-					{!selectedCourseId && !loadingCourses && (
+					) : filteredStudents.length === 0 ? (
 						<div className="flex flex-col items-center justify-center min-h-[400px] text-center">
 							<div className="p-6 rounded-full bg-muted/50 mb-4">
-								<GraduationCap className="h-12 w-12 text-muted-foreground" />
+								<User className="h-12 w-12 text-muted-foreground" />
 							</div>
 							<h3 className="text-xl font-semibold text-foreground mb-2">
-								Selecione um Curso
+								{searchTerm ? 'Nenhum aluno encontrado' : 'Nenhum aluno cadastrado'}
 							</h3>
 							<p className="text-sm text-muted-foreground max-w-md">
-								Escolha um curso acima para visualizar suas turmas e alunos cadastrados.
+								{searchTerm
+									? `Não encontramos alunos com o termo "${searchTerm}". Tente buscar com outro termo.`
+									: 'Não há alunos cadastrados nesta turma.'}
 							</p>
 						</div>
+					) : (
+						<>
+							{/* Estatísticas */}
+							{searchTerm && (
+								<div className="mb-6 flex items-center gap-4 text-sm text-muted-foreground animate-in fade-in slide-in-from-top-4 duration-500 delay-400">
+									<span>
+										{filteredStudents.length} {filteredStudents.length === 1 ? 'aluno encontrado' : 'alunos encontrados'}
+									</span>
+									<span className="text-primary">
+										Filtrando por: "{searchTerm}"
+									</span>
+								</div>
+							)}
+
+							{/* Grid de Alunos */}
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{filteredStudents.map((student, index) => (
+									<div
+										key={student.id}
+										onClick={() => router.push(`/alunos/${courseId}/${classRoomId}/${student.id}` as any)}
+										className={cn(
+											"group relative rounded-xl border border-border/50 bg-card shadow-sm",
+											"hover:shadow-xl hover:shadow-primary/10 transition-all duration-300",
+											"hover:-translate-y-1 hover:border-primary/30",
+											"overflow-hidden cursor-pointer",
+											"animate-in fade-in slide-in-from-bottom-4",
+											"flex flex-col"
+										)}
+										style={{
+											animationDelay: `${index * 100}ms`,
+										}}
+										role="button"
+										tabIndex={0}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault();
+												router.push(`/alunos/${courseId}/${classRoomId}/${student.id}` as any);
+											}
+										}}
+										aria-label={`Ver detalhes do aluno ${student.attributes.name}`}
+									>
+										{/* Botões de Ação */}
+										<div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleOpenEditModal(student);
+												}}
+												aria-label={`Editar aluno ${student.attributes.name}`}
+											>
+												<Edit className="h-4 w-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteStudent(student.id);
+												}}
+												aria-label={`Deletar aluno ${student.attributes.name}`}
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</div>
+										<div className="absolute inset-0 bg-linear-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-primary/5 transition-all duration-300 pointer-events-none" />
+										
+										<div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/50 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+										{/* Header com gradiente */}
+										<div className="relative w-full h-24 overflow-hidden bg-linear-to-br from-primary/20 via-primary/10 to-primary/5">
+											<div className="absolute inset-0 bg-linear-to-t from-card/60 via-card/20 to-transparent" />
+											<div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+											
+											{/* Ícone do aluno */}
+											<div className="absolute top-4 left-4 p-3 rounded-xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 group-hover:scale-110 transition-all duration-300">
+												<User className="h-6 w-6 text-primary" />
+											</div>
+										</div>
+
+										<div className="relative p-6 space-y-4 flex-1">
+											<div className="space-y-2">
+												<h3 className="text-lg font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
+													{student.attributes.name}
+												</h3>
+											</div>
+
+											<div className="h-px bg-border group-hover:bg-primary/30 transition-colors duration-300" />
+
+											<div className="space-y-3">
+												{/* RA */}
+												<div className="flex items-start gap-3">
+													<div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
+														<IdCard className="h-4 w-4 text-primary" />
+													</div>
+													<div className="flex-1 min-w-0">
+														<p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+															RA
+														</p>
+														<p className="text-sm font-semibold text-foreground">
+															{student.attributes.ra}
+														</p>
+													</div>
+												</div>
+
+												{/* Email */}
+												{student.attributes.email && (
+													<div className="flex items-start gap-3">
+														<div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
+															<Mail className="h-4 w-4 text-primary" />
+														</div>
+														<div className="flex-1 min-w-0">
+															<p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wide">
+																Email
+															</p>
+															<p className="text-sm font-semibold text-foreground line-clamp-2 break-all">
+																{student.attributes.email}
+															</p>
+														</div>
+													</div>
+												)}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+
+							{/* Botão Carregar Mais */}
+							{!searchTerm && (
+								<LoadMoreButton
+									onClick={handleLoadMore}
+									loading={loadingMore}
+									hasMore={hasMore}
+								/>
+							)}
+						</>
 					)}
 				</div>
 
 				{/* Modal de Criação de Alunos */}
-				{showCreateModal && selectedCourseId && selectedClassRoomId && (
+				{showCreateModal && (
 					<div
 						className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
 						onClick={() => !isSubmitting && setShowCreateModal(false)}
@@ -1194,7 +902,7 @@ export default function AlunosPage() {
 									</h2>
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Adicione um ou mais alunos à turma {selectedClassRoom?.attributes.name}
+									Adicione um ou mais alunos à turma
 								</p>
 							</div>
 
@@ -1400,7 +1108,7 @@ export default function AlunosPage() {
 				)}
 
 				{/* Modal de Edição de Aluno */}
-				{showEditModal && editingStudent && selectedCourseId && selectedClassRoomId && (
+				{showEditModal && editingStudent && (
 					<div
 						className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
 						onClick={() => !isSubmitting && setShowEditModal(false)}
@@ -1593,3 +1301,4 @@ export default function AlunosPage() {
 		</ProtectedRoute>
 	);
 }
+

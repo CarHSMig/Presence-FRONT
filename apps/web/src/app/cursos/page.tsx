@@ -11,6 +11,8 @@ import { Loader2, GraduationCap, Search, Plus } from "lucide-react";
 import { CourseCard } from "@/components/CourseCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
+import { LoadMoreButton } from "@/components/LoadMoreButton";
 
 interface CourseAttributes {
 	id: string;
@@ -58,12 +60,21 @@ export default function CursosPage() {
 	const [courses, setCourses] = useState<Course[]>([]);
 	const [classRooms, setClassRooms] = useState<ClassRoom[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [currentPage, setCurrentPage] = useState(1);
+	const [hasMore, setHasMore] = useState(true);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const perPage = 20;
 
 	useEffect(() => {
 		const fetchCourses = async () => {
 			try {
 				setLoading(true);
+				setCurrentPage(1);
+				setHasMore(true);
 				const token = authUtils.getToken();
 				if (!token) {
 					toast.error('Você precisa estar autenticado');
@@ -75,7 +86,7 @@ export default function CursosPage() {
 					throw new Error('URL do servidor não configurada');
 				}
 
-				const response = await fetch(`${baseUrl}/admin/courses?include=class_rooms`, {
+				const response = await fetch(`${baseUrl}/admin/courses?include=class_rooms&per_page=${perPage}&page=1`, {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -98,6 +109,9 @@ export default function CursosPage() {
 					}
 				});
 				setClassRooms(fetchedClassRooms);
+
+				// Verificar se há mais dados
+				setHasMore(data.data.length === perPage);
 			} catch (error) {
 				console.error('Erro ao buscar cursos:', error);
 				toast.error(
@@ -113,21 +127,12 @@ export default function CursosPage() {
 		fetchCourses();
 	}, []);
 
-	// Filtrar cursos por termo de busca
-	const filteredCourses = courses.filter((course) =>
-		course.attributes.name.toLowerCase().includes(searchTerm.toLowerCase())
-	);
-
-	// Função para deletar curso
-	const handleDeleteCourse = async (courseId: string) => {
-		const course = courses.find(c => c.id === courseId);
-		const courseName = course?.attributes.name || 'este curso';
-
-		if (!confirm(`Tem certeza que deseja deletar o curso "${courseName}"?\n\nEsta ação não pode ser desfeita.`)) {
-			return;
-		}
+	// Função para carregar mais cursos
+	const handleLoadMore = async () => {
+		if (loadingMore || !hasMore) return;
 
 		try {
+			setLoadingMore(true);
 			const token = authUtils.getToken();
 			if (!token) {
 				toast.error('Você precisa estar autenticado');
@@ -139,7 +144,75 @@ export default function CursosPage() {
 				throw new Error('URL do servidor não configurada');
 			}
 
-			const response = await fetch(`${baseUrl}/admin/courses/${courseId}`, {
+			const nextPage = currentPage + 1;
+			const response = await fetch(`${baseUrl}/admin/courses?include=class_rooms&per_page=${perPage}&page=${nextPage}`, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error(`Erro ao buscar cursos: ${response.status}`);
+			}
+
+			const data: CoursesResponse = await response.json();
+			setCourses(prev => [...prev, ...data.data]);
+
+			// Separar turmas do included e adicionar às existentes
+			const fetchedClassRooms: ClassRoom[] = [];
+			data.included?.forEach((item) => {
+				if (item.type === 'class_rooms') {
+					fetchedClassRooms.push(item as ClassRoom);
+				}
+			});
+			setClassRooms(prev => [...prev, ...fetchedClassRooms]);
+
+			// Verificar se há mais dados
+			setHasMore(data.data.length === perPage);
+			setCurrentPage(nextPage);
+		} catch (error) {
+			console.error('Erro ao carregar mais cursos:', error);
+			toast.error(
+				error instanceof Error 
+					? error.message 
+					: 'Erro ao carregar mais cursos'
+			);
+		} finally {
+			setLoadingMore(false);
+		}
+	};
+
+	// Filtrar cursos por termo de busca
+	const filteredCourses = courses.filter((course) =>
+		course.attributes.name.toLowerCase().includes(searchTerm.toLowerCase())
+	);
+
+	// Função para abrir modal de deletar curso
+	const handleDeleteCourse = (courseId: string) => {
+		setCourseToDelete(courseId);
+		setShowDeleteModal(true);
+	};
+
+	// Função para confirmar deletar curso
+	const confirmDeleteCourse = async () => {
+		if (!courseToDelete) return;
+
+		try {
+			setIsDeleting(true);
+			const token = authUtils.getToken();
+			if (!token) {
+				toast.error('Você precisa estar autenticado');
+				return;
+			}
+
+			const baseUrl = applicationUtils.getBaseUrl();
+			if (!baseUrl) {
+				throw new Error('URL do servidor não configurada');
+			}
+
+			const response = await fetch(`${baseUrl}/admin/courses/${courseToDelete}`, {
 				method: 'DELETE',
 				headers: {
 					'Content-Type': 'application/json',
@@ -159,7 +232,9 @@ export default function CursosPage() {
 			toast.success('Curso deletado com sucesso!');
 			
 			// Remover curso da lista
-			setCourses(prev => prev.filter(c => c.id !== courseId));
+			setCourses(prev => prev.filter(c => c.id !== courseToDelete));
+			setShowDeleteModal(false);
+			setCourseToDelete(null);
 		} catch (error) {
 			console.error('Erro ao deletar curso:', error);
 			toast.error(
@@ -167,8 +242,12 @@ export default function CursosPage() {
 					? error.message 
 					: 'Erro ao deletar curso. Tente novamente.'
 			);
+		} finally {
+			setIsDeleting(false);
 		}
 	};
+
+	const courseToDeleteData = courses.find(c => c.id === courseToDelete);
 
 	return (
 		<ProtectedRoute>
@@ -266,9 +345,32 @@ export default function CursosPage() {
 									/>
 								))}
 							</div>
+
+							{/* Botão Carregar Mais */}
+							{!searchTerm && (
+								<LoadMoreButton
+									onClick={handleLoadMore}
+									loading={loadingMore}
+									hasMore={hasMore}
+								/>
+							)}
 						</>
 					)}
 				</div>
+
+				{/* Modal de Confirmação de Exclusão */}
+				<ConfirmDeleteModal
+					isOpen={showDeleteModal}
+					onClose={() => {
+						setShowDeleteModal(false);
+						setCourseToDelete(null);
+					}}
+					onConfirm={confirmDeleteCourse}
+					title="Confirmar Exclusão"
+					message={courseToDeleteData ? `Tem certeza que deseja deletar o curso "${courseToDeleteData.attributes.name}"?` : 'Tem certeza que deseja deletar este curso?'}
+					confirmText="Deletar Curso"
+					isLoading={isDeleting}
+				/>
 			</AuthenticatedLayout>
 		</ProtectedRoute>
 	);

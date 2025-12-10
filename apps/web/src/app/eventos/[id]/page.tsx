@@ -28,13 +28,23 @@ import {
 	Edit,
 	FileText,
 	AlertCircle,
-	Sparkles
+	Sparkles,
+	Download,
+	FileSpreadsheet,
+	Copy,
+	Check
 } from "lucide-react";
 import QRCodeSVG from "react-qr-code";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Multiselect, type MultiselectOption } from '@/components/ui/multiselect';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useForm } from '@tanstack/react-form';
 import { createEventSchema, type CreateEventFormData } from '@/validators/event.validator';
 import Image from "next/image";
@@ -170,6 +180,9 @@ export default function EventoDetailPage() {
 	const [loadingParticipants, setLoadingParticipants] = useState(false);
 	const [currentPage, setCurrentPage] = useState(1);
 	const [hasMoreParticipants, setHasMoreParticipants] = useState(true);
+	const [isExporting, setIsExporting] = useState(false);
+	const [updatingPresence, setUpdatingPresence] = useState<Record<string, boolean>>({});
+	const [linkCopied, setLinkCopied] = useState(false);
 	const perPage = 20;
 
 	useEffect(() => {
@@ -212,12 +225,7 @@ export default function EventoDetailPage() {
 
 				// Salvar presence_url
 				if (data.meta?.presence_url) {
-					const baseUrl = applicationUtils.getBaseUrl();
-					// Construir URL completa
-					const fullUrl = baseUrl 
-						? `${baseUrl}${data.meta.presence_url.startsWith('/') ? '' : '/'}${data.meta.presence_url}`
-						: data.meta.presence_url;
-					setPresenceUrl(fullUrl);
+					setPresenceUrl(data.meta.presence_url);
 				}
 
 				// Separar cursos e turmas do included
@@ -247,6 +255,101 @@ export default function EventoDetailPage() {
 			fetchEvent();
 		}
 	}, [eventId, router]);
+
+	// Função para copiar o link de presença
+	const handleCopyLink = async () => {
+		if (!presenceUrl) {
+			toast.error('Link de presença não disponível');
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(presenceUrl);
+			setLinkCopied(true);
+			toast.success('Link copiado para a área de transferência!');
+			
+			// Resetar o estado após 2 segundos
+			setTimeout(() => {
+				setLinkCopied(false);
+			}, 2000);
+		} catch (error) {
+			console.error('Erro ao copiar link:', error);
+			toast.error('Erro ao copiar link. Tente novamente.');
+		}
+	};
+
+	// Função para exportar participantes
+	const handleExportParticipants = async (format: 'csv' | 'xlsx') => {
+		if (!eventId) {
+			toast.error('ID do evento não encontrado');
+			return;
+		}
+
+		try {
+			setIsExporting(true);
+			const token = authUtils.getToken();
+			if (!token) {
+				toast.error('Você precisa estar autenticado');
+				return;
+			}
+
+			const baseUrl = applicationUtils.getBaseUrl();
+			if (!baseUrl) {
+				throw new Error('URL do servidor não configurada');
+			}
+
+			const url = `${baseUrl}/admin/events/${eventId}/participants/export_participants?format=${format}`;
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(
+					errorData.message || 
+					errorData.error ||
+					`Erro ao exportar participantes: ${response.status} ${response.statusText}`
+				);
+			}
+
+			// Obter o blob do arquivo
+			const blob = await response.blob();
+			
+			// Criar URL temporária para download
+			const downloadUrl = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = downloadUrl;
+			
+			// Definir nome do arquivo baseado no formato
+			const extension = format === 'csv' ? 'csv' : 'xlsx';
+			const eventName = event?.attributes.name || 'evento';
+			const sanitizedEventName = eventName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+			link.download = `participantes_${sanitizedEventName}_${new Date().toISOString().split('T')[0]}.${extension}`;
+			
+			// Trigger download
+			document.body.appendChild(link);
+			link.click();
+			
+			// Limpar
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(downloadUrl);
+
+			toast.success(`Participantes exportados com sucesso em formato ${format.toUpperCase()}!`);
+		} catch (error) {
+			console.error('Erro ao exportar participantes:', error);
+			toast.error(
+				error instanceof Error 
+					? error.message 
+					: 'Erro ao exportar participantes. Tente novamente.'
+			);
+		} finally {
+			setIsExporting(false);
+		}
+	};
 
 	// Buscar participantes
 	useEffect(() => {
@@ -328,6 +431,77 @@ export default function EventoDetailPage() {
 	const loadMoreParticipants = () => {
 		if (!loadingParticipants && hasMoreParticipants) {
 			setCurrentPage(prev => prev + 1);
+		}
+	};
+
+	// Função para atualizar presença do participante
+	const handleUpdatePresence = async (participantId: string, present: boolean) => {
+		try {
+			setUpdatingPresence(prev => ({ ...prev, [participantId]: true }));
+
+			const token = authUtils.getToken();
+			if (!token) {
+				toast.error('Você precisa estar autenticado');
+				router.push('/login');
+				return;
+			}
+
+			const baseUrl = applicationUtils.getBaseUrl();
+			if (!baseUrl) {
+				throw new Error('URL do servidor não configurada');
+			}
+
+			const url = `${baseUrl}/admin/events/${eventId}/participants/${participantId}`;
+			
+			const response = await fetch(url, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					data: {
+						type: 'participant',
+						attributes: {
+							present: present
+						}
+					}
+				}),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(
+					errorData.errors?.[0]?.detail || 
+					`Erro ao atualizar presença: ${response.status}`
+				);
+			}
+
+			// Atualizar o estado local do participante
+			setParticipants(prev => prev.map(p => 
+				p.id === participantId 
+					? { ...p, attributes: { ...p.attributes, present } }
+					: p
+			));
+
+			toast.success(
+				present 
+					? 'Presença confirmada com sucesso!' 
+					: 'Presença removida com sucesso!'
+			);
+		} catch (error) {
+			console.error('Erro ao atualizar presença:', error);
+			toast.error(
+				error instanceof Error 
+					? error.message 
+					: 'Erro ao atualizar presença. Tente novamente.'
+			);
+		} finally {
+			setUpdatingPresence(prev => {
+				const newState = { ...prev };
+				delete newState[participantId];
+				return newState;
+			});
 		}
 	};
 
@@ -867,6 +1041,45 @@ export default function EventoDetailPage() {
 										</h2>
 										{participants.length > 0 && (
 											<div className="flex items-center gap-3">
+												{/* Botão de Exportar */}
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="outline"
+															size="sm"
+															disabled={isExporting}
+															className="gap-2"
+														>
+															{isExporting ? (
+																<>
+																	<Loader2 className="h-4 w-4 animate-spin" />
+																	Exportando...
+																</>
+															) : (
+																<>
+																	<Download className="h-4 w-4" />
+																	Exportar
+																</>
+															)}
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem
+															onClick={() => handleExportParticipants('csv')}
+															disabled={isExporting}
+														>
+															<FileText className="h-4 w-4 mr-2" />
+															Exportar como CSV
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={() => handleExportParticipants('xlsx')}
+															disabled={isExporting}
+														>
+															<FileSpreadsheet className="h-4 w-4 mr-2" />
+															Exportar como XLSX
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
 												<div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
 													<CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
 													<span className="text-sm font-semibold text-green-700 dark:text-green-300">
@@ -967,8 +1180,8 @@ export default function EventoDetailPage() {
 																		</div>
 																	</div>
 
-																	{/* Badge de Status */}
-																	<div className="shrink-0">
+																	{/* Badge de Status e Botões de Ação */}
+																	<div className="shrink-0 flex flex-col items-end gap-2">
 																		{participant.attributes.present ? (
 																			<div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 text-green-700 dark:text-green-300 text-sm font-semibold border border-green-500/30 shadow-sm">
 																				<CheckCircle2 className="h-4 w-4" />
@@ -980,6 +1193,51 @@ export default function EventoDetailPage() {
 																				<span>Ausente</span>
 																			</div>
 																		)}
+																		
+																		{/* Botões de Ação */}
+																		<div className="flex items-center gap-2">
+																			{participant.attributes.present ? (
+																				<Button
+																					variant="outline"
+																					size="sm"
+																					onClick={() => handleUpdatePresence(participant.id, false)}
+																					disabled={updatingPresence[participant.id]}
+																					className="h-8 px-3 text-xs border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+																				>
+																					{updatingPresence[participant.id] ? (
+																						<>
+																							<Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+																							Atualizando...
+																						</>
+																					) : (
+																						<>
+																							<XCircle className="h-3 w-3 mr-1.5" />
+																							Marcar Ausente
+																						</>
+																					)}
+																				</Button>
+																			) : (
+																				<Button
+																					variant="outline"
+																					size="sm"
+																					onClick={() => handleUpdatePresence(participant.id, true)}
+																					disabled={updatingPresence[participant.id]}
+																					className="h-8 px-3 text-xs border-green-500/30 text-green-600 dark:text-green-400 hover:bg-green-500/10 hover:border-green-500/50"
+																				>
+																					{updatingPresence[participant.id] ? (
+																						<>
+																							<Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+																							Atualizando...
+																						</>
+																					) : (
+																						<>
+																							<CheckCircle2 className="h-3 w-3 mr-1.5" />
+																							Marcar Presente
+																						</>
+																					)}
+																				</Button>
+																			)}
+																		</div>
 																	</div>
 																</div>
 
@@ -1129,14 +1387,38 @@ export default function EventoDetailPage() {
 							className="relative bg-card rounded-2xl border border-border/50 shadow-2xl p-8 max-w-md w-full animate-in zoom-in-95 duration-200"
 							onClick={(e) => e.stopPropagation()}
 						>
-							{/* Botão de Fechar */}
-							<button
-								onClick={() => setShowQrModal(false)}
-								className="absolute top-4 right-4 p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-								aria-label="Fechar modal"
-							>
-								<X className="h-5 w-5" />
-							</button>
+							{/* Botão de Fechar e Copiar Link */}
+							<div className="absolute top-4 right-4 flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleCopyLink}
+									className="h-9 px-3 text-xs"
+									title="Copiar link de presença"
+								>
+									{linkCopied ? (
+										<>
+											<Check className="h-3.5 w-3.5 mr-1.5 text-green-600 dark:text-green-400" />
+											<span className="text-green-600 dark:text-green-400">Copiado!</span>
+										</>
+									) : (
+										<>
+											<Copy className="h-3.5 w-3.5 mr-1.5" />
+											<span className="hidden sm:inline">Copiar Link</span>
+										</>
+									)}
+								</Button>
+								<button
+									onClick={() => {
+										setShowQrModal(false);
+										setLinkCopied(false);
+									}}
+									className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+									aria-label="Fechar modal"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
 
 							{/* Conteúdo do Modal */}
 							<div className="flex flex-col items-center gap-6">
@@ -1154,13 +1436,37 @@ export default function EventoDetailPage() {
 								<p className="text-sm text-muted-foreground text-center">
 									Escaneie o código para registrar presença no evento
 								</p>
-								<Button
-									variant="outline"
-									onClick={() => setShowQrModal(false)}
-									className="w-full"
-								>
-									Fechar
-								</Button>
+								
+								{/* Botões de Ação */}
+								<div className="w-full space-y-3">
+									<Button
+										variant="default"
+										onClick={handleCopyLink}
+										className="w-full"
+									>
+										{linkCopied ? (
+											<>
+												<Check className="h-4 w-4 mr-2 text-white" />
+												Link Copiado!
+											</>
+										) : (
+											<>
+												<Copy className="h-4 w-4 mr-2" />
+												Copiar Link
+											</>
+										)}
+									</Button>
+									<Button
+										variant="outline"
+										onClick={() => {
+											setShowQrModal(false);
+											setLinkCopied(false);
+										}}
+										className="w-full"
+									>
+										Fechar
+									</Button>
+								</div>
 							</div>
 						</div>
 					</div>

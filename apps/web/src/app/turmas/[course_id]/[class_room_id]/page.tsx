@@ -334,6 +334,17 @@ export default function ClassRoomDetailPage() {
 											</p>
 										</div>
 									</div>
+									{students.length > 0 && (
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => router.push(`/turmas/${courseId}/${classRoomId}/alunos` as any)}
+											className="flex items-center gap-2"
+										>
+											<Users className="h-4 w-4" />
+											Ver Todos os Alunos
+										</Button>
+									)}
 								</div>
 
 								{students.length === 0 ? (
@@ -348,7 +359,17 @@ export default function ClassRoomDetailPage() {
 										{students.map((student) => (
 											<div
 												key={student.id}
-												className="group relative rounded-xl border border-border/50 bg-card hover:bg-secondary/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 overflow-hidden"
+												onClick={() => router.push(`/alunos/${courseId}/${classRoomId}/${student.id}` as any)}
+												className="group relative rounded-xl border border-border/50 bg-card hover:bg-secondary/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer"
+												role="button"
+												tabIndex={0}
+												onKeyDown={(e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														router.push(`/alunos/${courseId}/${classRoomId}/${student.id}` as any);
+													}
+												}}
+												aria-label={`Ver detalhes do aluno ${student.attributes.name}`}
 											>
 												{/* Barra lateral de destaque */}
 												<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30 group-hover:bg-primary transition-colors duration-300" />

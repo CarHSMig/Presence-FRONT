@@ -101,9 +101,9 @@ export function ClassRoomCard({ classRoom, index = 0, onDelete, onEdit }: ClassR
 							{onEdit && (
 								<Button
 									variant="ghost"
-									size="sm"
+									size="icon"
 									onClick={handleEdit}
-									className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary transition-colors"
+									className="h-8 w-8 p-0 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
 									aria-label={`Editar turma ${classRoom.attributes.name}`}
 								>
 									<Edit className="h-4 w-4" />
@@ -112,9 +112,9 @@ export function ClassRoomCard({ classRoom, index = 0, onDelete, onEdit }: ClassR
 							{onDelete && (
 								<Button
 									variant="ghost"
-									size="sm"
+									size="icon"
 									onClick={handleDelete}
-									className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+									className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
 									aria-label={`Deletar turma ${classRoom.attributes.name}`}
 								>
 									<Trash2 className="h-4 w-4" />

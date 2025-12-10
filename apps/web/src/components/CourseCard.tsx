@@ -111,9 +111,9 @@ export function CourseCard({ course, classRooms = [], index = 0, onDelete }: Cou
 					{onDelete && (
 						<Button
 							variant="ghost"
-							size="sm"
+							size="icon"
 							onClick={handleDelete}
-							className="shrink-0 h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive transition-colors"
+							className="shrink-0 h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
 							aria-label={`Deletar curso ${course.attributes.name}`}
 						>
 							<Trash2 className="h-4 w-4" />
