@@ -12,10 +12,9 @@ interface InputProps extends React.ComponentProps<"input"> {
 	errorMessage?: string;
 	label?: string;
 	helperText?: string;
-	// Props específicas para variante secret
 	variant?: "default" | "secret";
-	showToggle?: boolean; // Se deve mostrar o botão de mostrar/ocultar
-	alwaysHidden?: boolean; // Se deve sempre ficar oculto (sem toggle)
+	showToggle?: boolean;
+	alwaysHidden?: boolean;
 }
 
 function Input({ 
@@ -43,7 +42,6 @@ function Input({
 		}
 	};
 
-	// Lógica para variante secret
 	const isSecretVariant = variant === "secret";
 	const shouldShowToggle = isSecretVariant && showToggle && !alwaysHidden;
 	const inputType = isSecretVariant 
@@ -65,19 +63,12 @@ function Input({
 				"file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
 				"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
 				error && "border-destructive ring-destructive/20",
-				// Padding padrão quando não há ícone
 				!icon && !isSecretVariant && "px-4",
-				// Padding para ícone à esquerda - pl-10 garante espaço para o ícone (40px), pr-4 para o texto à direita
 				icon && iconPosition === "left" && !isSecretVariant && "pl-10 pr-4",
-				// Padding para ícone à direita
 				icon && iconPosition === "right" && !isSecretVariant && "pl-4 pr-10",
-				// Padding para variante secret com ícone à esquerda
 				isSecretVariant && icon && iconPosition === "left" && "pl-10 pr-4",
-				// Padding para variante secret com toggle
-				isSecretVariant && shouldShowToggle && "pl-4 pr-20", // Espaço para ícone + toggle
-				// Padding para variante secret com ícone à direita sem toggle
+				isSecretVariant && shouldShowToggle && "pl-4 pr-20",
 				isSecretVariant && !shouldShowToggle && icon && iconPosition === "right" && "pl-4 pr-10",
-				// Padding para variante secret sem ícone e sem toggle
 				isSecretVariant && !icon && !shouldShowToggle && "px-4",
 				className,
 			)}
@@ -85,7 +76,6 @@ function Input({
 		/>
 	);
 
-	// Ícone principal (esquerda ou direita)
 	const mainIconElement = icon && (
 		<div 
 			className={cn(
@@ -98,8 +88,7 @@ function Input({
 			{icon}
 		</div>
 	);
-
-	// Ícone de toggle de visibilidade (apenas para variante secret)
+	
 	const toggleIconElement = shouldShowToggle && (
 		<div 
 			className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer hover:opacity-70"

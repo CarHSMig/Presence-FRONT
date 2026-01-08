@@ -46,7 +46,6 @@ interface CourseCardProps {
 export function CourseCard({ course, classRooms = [], index = 0, onDelete }: CourseCardProps) {
 	const router = useRouter();
 	
-	// Filtrar turmas que pertencem a este curso
 	const courseClassRooms = classRooms.filter(
 		(cr) => cr.attributes.course.id === course.id
 	);
@@ -90,12 +89,10 @@ export function CourseCard({ course, classRooms = [], index = 0, onDelete }: Cou
 			
 			<div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-primary via-primary/50 to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-			{/* Header com gradiente */}
 			<div className="relative w-full h-32 overflow-hidden bg-linear-to-br from-primary/20 via-primary/10 to-primary/5">
 				<div className="absolute inset-0 bg-linear-to-t from-card/60 via-card/20 to-transparent" />
 				<div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 				
-				{/* Ícone do curso */}
 				<div className="absolute top-6 left-6 p-4 rounded-xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 group-hover:scale-110 transition-all duration-300">
 					<GraduationCap className="h-8 w-8 text-primary" />
 				</div>
@@ -124,7 +121,6 @@ export function CourseCard({ course, classRooms = [], index = 0, onDelete }: Cou
 				<div className="h-px bg-border group-hover:bg-primary/30 transition-colors duration-300" />
 
 				<div className="space-y-4">
-					{/* Períodos */}
 					<div className="flex items-start gap-3">
 						<div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
 							<BookOpen className="h-4 w-4 text-primary" />
@@ -139,7 +135,6 @@ export function CourseCard({ course, classRooms = [], index = 0, onDelete }: Cou
 						</div>
 					</div>
 
-					{/* Turmas */}
 					<div className="flex items-start gap-3">
 						<div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 shrink-0">
 							<Users className="h-4 w-4 text-primary" />

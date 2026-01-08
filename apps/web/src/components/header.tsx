@@ -12,12 +12,10 @@ export default function Header() {
 	const { theme, resolvedTheme } = useTheme();
 	const [mounted, setMounted] = useState(false);
 
-	// Evitar hidratação mismatch
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
-	// Usar resolvedTheme para considerar o tema do sistema
 	const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 	const logoSrc = isDark ? DarkLogo : Logo;
 
